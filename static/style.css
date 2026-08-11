@@ -442,5 +442,14 @@ button.danger { color: var(--missing); }
 
 tr.drop-target td { background: var(--accent-soft); }
 
-a.badge { text-decoration: none; }
-a.badge:hover { text-decoration: underline; }
+/* Badgen i verifikatkolumnen är klickbar och öppnar verifikatmodalen. */
+button.badge {
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 1px 9px;
+  cursor: pointer;
+}
+
+button.badge:hover { border-color: currentColor; }

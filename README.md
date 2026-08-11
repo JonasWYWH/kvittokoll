@@ -32,11 +32,14 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 3. Markera vilka rader som inte kräver verifikat. De försvinner ur arbetslistan
    men finns kvar — växla **Visa även rader utan verifikatkrav** för att se dem.
 4. Koppla rader till underlagskällor. Källan bär länken dit verifikatet hämtas.
-5. Klicka **Ladda upp** på en rad. Modalen visar källans länk — öppna den, logga
-   in, ladda hem filen, och ladda upp den. Du kan också dra filen direkt på raden.
+5. Klicka **Ladda upp** i verifikatkolumnen. Modalen visar källans länk — öppna
+   den, logga in, ladda hem filen, och ladda upp den. Du kan också dra filen
+   direkt på raden.
 
 Varje rad visar sin källa som en pill under datumet. Saknas källa står det
-**Koppla källa** där istället — aldrig båda, så raden håller sig smal. Under
+**Koppla källa** där istället — aldrig båda, så raden håller sig smal.
+Verifikatkolumnen fungerar likadant: **Ladda upp** när verifikatet saknas,
+annars en klickbar statusbadge. Båda öppnar samma modal. Under
 **Källor** i toppen redigerar du namn, länkar, verifikattyp och mönster, och
 ser hur många transaktioner varje källa fångar.
 

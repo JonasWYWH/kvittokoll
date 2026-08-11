@@ -248,6 +248,20 @@ function renderMonth(key, rows) {
   return section;
 }
 
+/* Verifikatkolumnen bär hela verifikatet: en knapp när det saknas, annars en
+   klickbar badge. Båda öppnar samma modal, där filen också kan visas, bytas
+   och tas bort. Aldrig två saker i cellen. */
+function receiptCell(row) {
+  if (!row.requires_receipt) {
+    return `<span class="badge not_required">${STATUS_LABEL.not_required}</span>`;
+  }
+  if (!row.receipt) {
+    return `<button class="tiny" data-action="receipt">Ladda upp</button>`;
+  }
+  return `<button class="badge ${row.status}" data-action="receipt"
+    title="${escapeHtml(row.receipt.stored_filename)}">${STATUS_LABEL[row.status]}</button>`;
+}
+
 function renderRow(row) {
   const source = sourceById(row.source_id);
   const tr = document.createElement("tr");
@@ -279,20 +293,9 @@ function renderRow(row) {
       }</span>
     </td>
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
-    <td>
-      ${row.receipt
-        ? `<a class="badge ${row.status}" href="/api/transactions/${encodeURIComponent(row.id)}/receipt/file"
-             target="_blank" rel="noopener"
-             title="${escapeHtml(row.receipt.stored_filename)}">${STATUS_LABEL[row.status]} ↗</a>`
-        : `<span class="badge ${row.status}">${STATUS_LABEL[row.status]}</span>`}
-    </td>
+    <td>${receiptCell(row)}</td>
     <td class="date">${row.sent_at ? `<span class="num">${row.sent_at.slice(0, 10)}</span>` : "—"}</td>
     <td class="actions">
-      ${row.requires_receipt
-        ? `<button class="tiny" data-action="receipt">${
-            row.receipt ? "Verifikat" : "Ladda upp"
-          }</button>`
-        : ""}
       <button class="tiny" data-action="toggle-required">${
         row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
       }</button>
