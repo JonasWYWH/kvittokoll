@@ -24,8 +24,7 @@ from .normalize import normalize_text, slugify
 from .sources import MODE_LABELS, compile_pattern, match_source, new_source, suggest_pattern
 from .storage import Store
 
-# Fält i settings.json som får läsas av webbgränssnittet. Mejladresser hör till
-# steg 8; de skickas med redan nu eftersom vyn visar dem skrivskyddat.
+# Fält i settings.json som webbgränssnittet får läsa och skriva.
 PUBLIC_SETTINGS = (
     "recipient_email",
     "sender_email",
@@ -65,6 +64,14 @@ class Api:
                 for profile in load_profiles(self.store.profiles_dir)
             ],
             "match_modes": [{"id": mode, "label": MODE_LABELS[mode]} for mode in MATCH_MODES],
+            "paths": {
+                "data": str(self.store.data_dir),
+                "receipts": str(self.store.receipts_dir),
+                "outbox": str(self.store.outbox_dir),
+                "profiles": str(self.store.profiles_dir),
+                "trash": str(self.store.trash_dir),
+                "settings": str(self.store.settings_path),
+            },
             "transactions": [t.to_dict() for t in self._sorted_transactions()],
         }
 

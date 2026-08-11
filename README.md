@@ -5,8 +5,8 @@ Lokalt verktyg för att stämma av banktransaktioner mot verifikat.
 All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON-filer
 och en webbapp mot `localhost`.
 
-> **Status: steg 1–7 av 9 byggda.** Import, dubbletthantering och arbetslistan
-> fungerar mot skarp data. Inställningsvyn och massutskick är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
+> **Status: steg 1–8 av 9 byggda.** Import, dubbletthantering och arbetslistan
+> fungerar mot skarp data. Massutskick är inte byggt ännu. Se [Vad som saknas](#vad-som-saknas).
 
 ## Kom igång
 
@@ -38,6 +38,8 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 6. Klicka **Skicka**. Verktyget skapar en `.eml` med verifikatet bifogat och
    öppnar den i din mejlklient. Du trycker skicka, och markerar raden som
    skickad.
+
+Adresser, mallar och sökvägar finns under **Inställningar**.
 
 Varje rad visar sin källa som en pill under datumet. Saknas källa står det
 **Koppla källa** där istället — aldrig båda, så raden håller sig smal.
@@ -230,7 +232,14 @@ plats. Du trycker skicka.
 sitt tecken här — en inbetalning och en utgift ska inte se likadana ut i
 ämnesraden.
 
-Adresserna fylls i första gången du skickar; de sparas i `settings.json`.
+Mottagaradressen ställs in en gång under **Inställningar** och används för
+alla utskick. Avsändaren är valfri: mejlet skickas från kontot i din
+mejlklient oavsett vad som står i filen. Har du flera konton är det däremot
+`From` som avgör vilket klienten väljer — då är den värd att fylla i.
+
+I Apple Mail öppnas en `.eml` som ett *läst* meddelande utan Skicka-knapp.
+Tryck **⇧⌘D** (Meddelande → Skicka igen) för att få ett utkast med bilagan
+kvar, som går att skicka. Verktyget påminner om det efter att filen skapats.
 
 **Verktyget vet inte om mejlet gick iväg.** Det kan bara skapa filen och öppna
 den. Därför markerar du raden som skickad i ett eget steg, efteråt. Att en rad
@@ -264,11 +273,9 @@ adress som andra kan nå.
 Byggt: datamodell med atomiska skrivningar, import av camt.053 och CSV,
 dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare,
 källregistret med matchning, koppling och redigerbar källvy, uppladdning av
-verifikat med namnstandard, samt `.eml`-utskick per rad.
+verifikat med namnstandard, `.eml`-utskick per rad och inställningsvy.
 
-Inte byggt ännu: massutskick (§8.4) och inställningsvyn (steg 8). Adresserna
-går att fylla i från utskicksmodalen; övriga inställningar redigeras i
-`settings.json`.
+Inte byggt ännu: massutskick (§8.4) och SMTP som alternativ till `.eml`.
 
 ## Krav
 

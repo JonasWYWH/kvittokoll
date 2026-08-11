@@ -12,6 +12,7 @@
     <nav class="topbar-nav">
       <button class="link nav" data-view="list" aria-current="page">Arbetslistan</button>
       <button class="link nav" data-view="sources">Källor</button>
+      <button class="link nav" data-view="settings">Inställningar</button>
     </nav>
     <div class="topbar-actions">
       <button id="import-open" class="primary">Importera transaktioner</button>
@@ -19,6 +20,74 @@
   </header>
 
   <p id="flash" class="flash" hidden></p>
+
+  <main id="view-settings" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Inställningar</h2>
+        <p class="muted small">Skrivs till <code id="settings-path"></code>. Filen ligger i
+          <code>.gitignore</code> och följer aldrig med till ett publikt repo.</p>
+      </div>
+      <div class="actions">
+        <button id="settings-save" class="primary">Spara</button>
+      </div>
+    </div>
+
+    <section class="settings-card">
+      <h3>Utskick</h3>
+      <label class="field block">
+        Skicka verifikat till
+        <input type="email" id="set-recipient" placeholder="xxxxx@inbox.example.se">
+        <span class="hint">Bokföringens inkorg. Fylls i en gång och används för alla utskick.</span>
+      </label>
+      <label class="field block">
+        <span class="label-row">Avsändare <span class="optional">valfritt</span></span>
+        <input type="email" id="set-sender" placeholder="mig@mittforetag.se">
+        <span class="hint">Mejlet skickas från kontot i din mejlklient oavsett vad som står
+          här. Har du flera konton avgör den här adressen vilket klienten väljer — lämna
+          tomt om du bara har ett.</span>
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <h3>Mallar</h3>
+      <label class="field block">
+        Ämnesrad
+        <input type="text" id="set-subject">
+        <span class="hint">Platshållare: <code>{date}</code> <code>{amount}</code>
+          <code>{source}</code> <code>{company}</code> <code>{account}</code></span>
+      </label>
+      <label class="field block">
+        Brödtext
+        <textarea id="set-body" rows="2"></textarea>
+        <span class="hint">Samma platshållare som ämnesraden.</span>
+      </label>
+      <label class="field block">
+        Filnamn på verifikat
+        <input type="text" id="set-filename">
+        <span class="hint">Platshållare: <code>{date}</code> <code>{amount}</code>
+          <code>{tag}</code> <code>{company}</code> <code>{account}</code>. Filändelsen
+          läggs på automatiskt. Gäller nya uppladdningar — redan sparade filer döps inte om.</span>
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <h3>Arbetslistan</h3>
+      <label class="toggle">
+        <input type="checkbox" id="set-hide-not-required">
+        Dölj rader utan verifikatkrav som standard
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <h3>Var data ligger</h3>
+      <dl class="paths" id="settings-paths"></dl>
+      <p class="muted small">Ändras i <code>settings.json</code>. Kräver omstart.</p>
+    </section>
+
+    <p id="settings-message" class="muted small" hidden></p>
+    <p id="settings-error" class="error" hidden></p>
+  </main>
 
   <main id="view-sources" hidden>
     <div class="view-head">
@@ -124,13 +193,7 @@
 
       <div id="send-settings" hidden>
         <p class="error small" id="send-missing"></p>
-        <div class="grid-two">
-          <label class="field block">Till — bokföringens inkorg
-            <input type="email" id="send-recipient" placeholder="xxxxx@inbox.example.se"></label>
-          <label class="field block">Från — din avsändaradress
-            <input type="email" id="send-sender" placeholder="mig@mittforetag.se"></label>
-        </div>
-        <button class="tiny" id="send-save-settings">Spara adresserna</button>
+        <button class="tiny" id="send-open-settings">Öppna inställningar</button>
       </div>
 
       <div id="send-preview" class="mail-preview">

@@ -54,12 +54,18 @@ def render(template: str, values: Dict[str, str], field: str) -> str:
 
 
 def missing_settings(store: Store) -> Dict[str, str]:
-    """Vilka inställningar som saknas för att kunna skapa ett mejl."""
+    """Vilka inställningar som saknas för att kunna skapa ett mejl.
+
+    Bara mottagaradressen är obligatorisk. Avsändaren är valfri: mejlet
+    skickas från kontot i din mejlklient oavsett vad som står i filen. Har du
+    flera konton är det däremot ``From`` som avgör vilket klienten väljer, och
+    då är den värd att fylla i.
+    """
     missing = {}
     if not (store.settings.get("recipient_email") or "").strip():
-        missing["recipient_email"] = "Adressen till bokföringens inkorg saknas."
-    if not (store.settings.get("sender_email") or "").strip():
-        missing["sender_email"] = "Din avsändaradress saknas."
+        missing["recipient_email"] = (
+            "Adressen till bokföringens inkorg saknas. Fyll i den under Inställningar."
+        )
     return missing
 
 
@@ -94,7 +100,8 @@ def build_message(store: Store, transaction: Transaction) -> EmailMessage:
     details = preview(store, transaction)
     message = EmailMessage()
     message["To"] = details["to"]
-    message["From"] = details["from"]
+    if details["from"]:
+        message["From"] = details["from"]
     message["Subject"] = details["subject"]
     message["Date"] = formatdate(localtime=True)
     message.set_content(details["body"] + "\n")
@@ -149,6 +156,14 @@ def open_file(path: Path) -> Tuple[bool, str]:
     except Exception as error:
         return False, "Kunde inte öppna mejlklienten ({}). Filen ligger kvar: {}".format(
             error, path
+        )
+    if sys.platform == "darwin":
+        # Apple Mail öppnar en .eml som ett läst meddelande, inte som ett
+        # utkast. Utan den här raden är nästa steg inte gissningsbart.
+        return True, (
+            "Mejlet öppnades i din mejlklient. Öppnas det som ett läst meddelande "
+            "utan Skicka-knapp — tryck ⇧⌘D (Meddelande → Skicka igen) för att få "
+            "ett utkast att skicka."
         )
     return True, "Mejlet öppnades i din mejlklient."
 

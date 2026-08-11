@@ -10,6 +10,7 @@ const state = {
   sources: [],
   profiles: [],
   matchModes: [],
+  paths: {},
   settings: {},
   selected: new Set(),
   openNotes: new Set(),
@@ -74,6 +75,7 @@ async function load() {
   state.sources = data.sources || [];
   state.profiles = data.profiles || [];
   state.matchModes = data.match_modes || [];
+  state.paths = data.paths || {};
   state.transactions = data.transactions || [];
   if (!el("show-not-required").dataset.touched) {
     el("show-not-required").checked = state.settings.hide_not_required === false;
@@ -438,6 +440,7 @@ function showView(name) {
   state.view = name;
   el("view-list").hidden = name !== "list";
   el("view-sources").hidden = name !== "sources";
+  el("view-settings").hidden = name !== "settings";
   for (const button of document.querySelectorAll("button.nav")) {
     const active = button.dataset.view === name;
     button.classList.toggle("active", active);
@@ -445,6 +448,7 @@ function showView(name) {
     else button.removeAttribute("aria-current");
   }
   if (name === "sources") renderSources();
+  if (name === "settings") renderSettings();
 }
 
 for (const button of document.querySelectorAll("button.nav")) {
@@ -842,6 +846,66 @@ el("list").addEventListener("drop", async (event) => {
   }
 });
 
+/* ---------- inställningar ---------- */
+
+const SETTINGS_FIELDS = {
+  "set-recipient": "recipient_email",
+  "set-sender": "sender_email",
+  "set-subject": "subject_template",
+  "set-body": "body_template",
+  "set-filename": "filename_template",
+  "set-hide-not-required": "hide_not_required",
+};
+
+const PATH_LABELS = {
+  data: "Transaktioner och källor",
+  receipts: "Uppladdade verifikat",
+  outbox: "Skapade mejlfiler",
+  profiles: "Importprofiler",
+  trash: "Papperskorg",
+};
+
+function renderSettings() {
+  for (const [id, key] of Object.entries(SETTINGS_FIELDS)) {
+    const input = el(id);
+    if (input.type === "checkbox") input.checked = Boolean(state.settings[key]);
+    else input.value = state.settings[key] || "";
+  }
+  el("settings-path").textContent = (state.paths || {}).settings || "settings.json";
+  el("settings-paths").innerHTML = Object.entries(PATH_LABELS)
+    .filter(([key]) => (state.paths || {})[key])
+    .map(([key, label]) =>
+      `<dt>${escapeHtml(label)}</dt><dd class="num">${escapeHtml(state.paths[key])}</dd>`)
+    .join("");
+  el("settings-error").hidden = true;
+  el("settings-message").hidden = true;
+}
+
+el("settings-save").addEventListener("click", async (event) => {
+  event.preventDefault();
+  const payload = {};
+  for (const [id, key] of Object.entries(SETTINGS_FIELDS)) {
+    const input = el(id);
+    payload[key] = input.type === "checkbox" ? input.checked : input.value.trim();
+  }
+  try {
+    const result = await request("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    state.settings = result.settings;
+    el("settings-error").hidden = true;
+    el("settings-message").hidden = false;
+    el("settings-message").textContent = "Sparat.";
+    flash("Inställningarna är sparade.");
+  } catch (error) {
+    el("settings-message").hidden = true;
+    el("settings-error").hidden = false;
+    el("settings-error").textContent = error.message;
+  }
+});
+
 /* ---------- utskick ---------- */
 
 async function openSendDialog(row) {
@@ -871,11 +935,9 @@ async function refreshSendDialog() {
   const missing = Object.values(details.missing || {});
   el("send-settings").hidden = missing.length === 0;
   el("send-missing").textContent = missing.join(" ");
-  el("send-recipient").value = details.to || state.settings.recipient_email || "";
-  el("send-sender").value = details.from || state.settings.sender_email || "";
 
-  el("send-to").textContent = details.to || "—";
-  el("send-from").textContent = details.from || "—";
+  el("send-to").textContent = details.to || "ingen mottagare inställd";
+  el("send-from").textContent = details.from || "ditt konto i mejlklienten";
   el("send-subject").textContent = details.subject;
   el("send-attachment").textContent = details.attachment || "saknas";
   el("send-body").textContent = details.body;
@@ -888,24 +950,10 @@ async function refreshSendDialog() {
   el("send-mark").hidden = !state.emailCreated || Boolean(details.sent_at);
 }
 
-el("send-save-settings").addEventListener("click", async (event) => {
+el("send-open-settings").addEventListener("click", (event) => {
   event.preventDefault();
-  try {
-    const result = await request("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient_email: el("send-recipient").value.trim(),
-        sender_email: el("send-sender").value.trim(),
-      }),
-    });
-    state.settings = result.settings;
-    el("send-error").hidden = true;
-    await refreshSendDialog();
-  } catch (error) {
-    el("send-error").hidden = false;
-    el("send-error").textContent = error.message;
-  }
+  el("send-dialog").close();
+  showView("settings");
 });
 
 el("send-create").addEventListener("click", async (event) => {

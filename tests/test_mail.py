@@ -121,6 +121,24 @@ class MailTest(unittest.TestCase):
         self.assertEqual(attachments[0].get_content_type(), "application/pdf")
         self.assertEqual(attachments[0].get_payload(decode=True), PDF)
 
+    def test_utan_avsandare_utelamnas_from_huvudet(self):
+        """Avsändaren är valfri — mejlet skickas ändå från kontot i
+        mejlklienten. Ett tomt From-huvud vore värre än inget."""
+        self.with_receipt()
+        self.store.settings["sender_email"] = ""
+        message = email.message_from_bytes(
+            mail.write_eml(self.store, self.transaction).read_bytes()
+        )
+        self.assertIsNone(message["From"])
+        self.assertEqual(message["To"], SETTINGS["recipient_email"])
+        attachments = [p for p in message.walk() if p.get_filename()]
+        self.assertEqual(len(attachments), 1)
+
+    def test_utan_avsandare_gar_det_fortfarande_att_skicka(self):
+        self.with_receipt()
+        self.store.settings["sender_email"] = ""
+        self.assertEqual(mail.preview(self.store, self.transaction)["missing"], {})
+
     def test_brodtexten_finns_i_mejlet(self):
         self.with_receipt()
         message = email.message_from_bytes(
