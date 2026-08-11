@@ -6,8 +6,7 @@ All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON
 och en webbapp mot `localhost`.
 
 > Verktyget används dagligen mot skarp bankdata. Massutskick (flera verifikat
-> i ett mejl) och SMTP är inte byggda — se [Vad som saknas](#vad-som-saknas). Se [Vad som saknas](#vad-som-saknas).
-
+> i ett mejl) och SMTP är inte byggda — se [Vad som saknas](#vad-som-saknas).
 ![Arbetslistan med transaktioner grupperade per månad](docs/bilder/arbetslistan.jpg)
 
 ## Kom igång
