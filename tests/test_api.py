@@ -112,6 +112,33 @@ class ApiTest(unittest.TestCase):
         self.assertEqual([(p.pattern, p.mode) for p in patterns],
                          [("NETLIFY SAN FRANCISCO", "contains")])
 
+    def test_nytt_monster_fran_dialogen_kopplar_alla_forekomster(self):
+        """En källa som skapas från kopplingsdialogen ska koppla alla rader
+        mönstret träffar, inte bara den man råkade stå på."""
+        rows = [r for r in self.api.transactions()["transactions"]
+                if r["description"].startswith("ANTHROPIC")]
+        self.assertGreater(len(rows), 1, "fixturen behöver flera ANTHROPIC-rader")
+
+        created = self.api.create_source({"name": "Anthropic"})["source"]
+        result = self.api.update_transaction(rows[0]["id"], {
+            "source_id": created["id"],
+            "add_match_pattern": True,
+            "match_pattern": "ANTHROPIC",
+            "match_pattern_mode": "starts_with",
+        })
+        self.assertTrue(result["pattern_added"])
+        self.assertEqual(result["coupled"], len(rows) - 1)
+
+        for row in self.api.transactions()["transactions"]:
+            if row["description"].startswith("ANTHROPIC"):
+                self.assertEqual(row["source_id"], created["id"], row["description"])
+
+    def test_koppling_utan_nytt_monster_ror_inga_andra_rader(self):
+        row = self.transaction("Utdelning")
+        created = self.api.create_source({"name": "Eget"})["source"]
+        result = self.api.update_transaction(row["id"], {"source_id": created["id"]})
+        self.assertEqual(result["coupled"], 0)
+
     def test_monster_kan_sparas_med_lage(self):
         row = self.transaction("NETLIFY               SAN FRANCISCO")
         created = self.api.create_source({"name": "Netlify"})["source"]

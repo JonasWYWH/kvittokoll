@@ -173,10 +173,16 @@ class Api:
                     pattern_added = True
 
         self.store.save_transactions()
+
+        # Ett nytt mönster gäller alla rader, inte bara den man råkade stå på.
+        # Utan det här kopplar en källa skapad från den här dialogen exakt en
+        # rad, medan resten av förekomsterna blir kvar okopplade.
+        coupled = self._rematch() if pattern_added else 0
         return {
-            "transaction": transaction.to_dict(),
+            "transaction": self.store.transaction_by_id(transaction_id).to_dict(),
             "applied_to_source": applied_to_source,
             "pattern_added": pattern_added,
+            "coupled": coupled,
         }
 
     def update_transactions_bulk(
