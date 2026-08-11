@@ -498,47 +498,57 @@ function renderSources() {
       med <em>Ny källa</em> här.</p>`;
     return;
   }
-  list.innerHTML = state.sources.map(renderSourceCard).join("");
+  list.innerHTML = `<table class="sources-table">
+    <colgroup>
+      <col class="c-name"><col class="c-rules"><col class="c-count">
+      <col class="c-links"><col class="c-edit">
+    </colgroup>
+    <thead><tr>
+      <th>Källa</th><th>Regler</th><th class="amount">Rader</th>
+      <th>Länkar</th><th class="c-edit"></th>
+    </tr></thead>
+    <tbody>${state.sources.map(renderSourceRow).join("")}</tbody>
+  </table>`;
 }
 
-function renderSourceCard(source) {
-  const editing = state.editingSource === source.id;
-  if (editing) return renderSourceEditor(source);
-
-  const patterns = (source.match_patterns || []).map((raw) => {
+function patternChips(source) {
+  const chips = (source.match_patterns || []).map((raw) => {
     const pattern = typeof raw === "string" ? { pattern: raw, mode: "contains" } : raw;
     const label = (state.matchModes.find((m) => m.id === pattern.mode) || {}).label || pattern.mode;
     return `<span class="pattern"><span class="pattern-mode">${escapeHtml(label)}</span>
       ${escapeHtml(pattern.pattern)}</span>`;
   });
+  return chips.join("") ||
+    '<span class="muted small">Inga regler — matchar inget automatiskt</span>';
+}
 
-  return `<article class="source-card" data-source="${escapeHtml(source.id)}">
-    <div class="source-head">
-      <div>
-        <h3>${escapeHtml(source.name)}</h3>
-        <p class="muted small">${escapeHtml(source.company) || "—"} ·
-          <span class="num">${source.transaction_count}</span> kopplade transaktioner ·
-          ${source.receipt_type === "physical" ? "fotas/scannas" : "digitalt"} ·
-          ${source.requires_receipt
-            ? "kräver verifikat"
-            : '<span class="badge not_required">kräver inget verifikat</span>'}
-          ${source.auto_send_configured ? " · mejlas automatiskt" : ""}</p>
-      </div>
-      <div class="actions">
-        <button class="tiny" data-source-action="edit">Redigera</button>
-      </div>
-    </div>
-    <div class="source-links">
+function renderSourceRow(source) {
+  if (state.editingSource === source.id) return renderSourceEditor(source);
+
+  const märken = [
+    source.requires_receipt ? "" : '<span class="badge not_required">Inget krav</span>',
+    source.receipt_type === "physical" ? '<span class="badge not_required">Fotas</span>' : "",
+    source.auto_send_configured ? '<span class="badge sent">Mejlas automatiskt</span>' : "",
+  ].filter(Boolean).join(" ");
+
+  return `<tr data-source="${escapeHtml(source.id)}">
+    <td class="text">
+      <span class="cell-main">${escapeHtml(source.name)}</span>
+      <span class="cell-meta">${escapeHtml(source.company) || "—"} ${märken}</span>
+    </td>
+    <td><div class="patterns">${patternChips(source)}</div>
+      ${source.note ? `<p class="source-note">${escapeHtml(source.note)}</p>` : ""}</td>
+    <td class="amount"><span class="num">${source.transaction_count}</span></td>
+    <td class="links">
       ${source.receipt_url
-        ? `<a href="${escapeHtml(source.receipt_url)}" target="_blank" rel="noopener">Hämta verifikat ↗</a>`
-        : `<span class="muted small">Ingen länk till verifikat</span>`}
+        ? `<a href="${escapeHtml(source.receipt_url)}" target="_blank" rel="noopener">Verifikat ↗</a>`
+        : `<span class="muted small">—</span>`}
       ${source.settings_url
-        ? `<a href="${escapeHtml(source.settings_url)}" target="_blank" rel="noopener">Ställ in mejladress ↗</a>`
+        ? `<a href="${escapeHtml(source.settings_url)}" target="_blank" rel="noopener">Mejlinställning ↗</a>`
         : ""}
-    </div>
-    ${source.note ? `<p class="source-note">${escapeHtml(source.note)}</p>` : ""}
-    <div class="patterns">${patterns.join("") || '<span class="muted small">Inga mönster — matchar inget automatiskt</span>'}</div>
-  </article>`;
+    </td>
+    <td class="c-edit"><button class="tiny" data-source-action="edit">Redigera</button></td>
+  </tr>`;
 }
 
 function renderSourceEditor(source) {
@@ -550,7 +560,7 @@ function renderSourceEditor(source) {
       .map((m) => `<option value="${m.id}"${m.id === selected ? " selected" : ""}>${escapeHtml(m.label)}</option>`)
       .join("");
 
-  return `<article class="source-card editing" data-source="${escapeHtml(source.id)}">
+  return `<tr class="source-editor" data-source="${escapeHtml(source.id)}"><td colspan="5">
     <div class="grid-two">
       <label class="field block">Namn<input type="text" data-field="name" value="${escapeHtml(source.name)}"></label>
       <label class="field block">Bolag<input type="text" data-field="company" value="${escapeHtml(source.company)}"></label>
@@ -599,7 +609,7 @@ function renderSourceEditor(source) {
       <button class="primary" data-source-action="save">Spara</button>
     </div>
     <p class="error" data-source-error hidden></p>
-  </article>`;
+  </td></tr>`;
 }
 
 el("sources-list").addEventListener("click", async (event) => {
@@ -613,8 +623,13 @@ el("sources-list").addEventListener("click", async (event) => {
     state.editingSource = id;
     renderSources();
   } else if (action === "cancel") {
+    // Utkastet har skrivits in i state.sources för att överleva omritningar
+    // när man lägger till mönster. Avbryter man måste det kastas, annars står
+    // ändringarna kvar i listan trots att de aldrig sparades.
     state.editingSource = null;
-    renderSources();
+    state.sourceDraft = {};
+    await load();
+    showView("sources");
   } else if (action === "add-pattern") {
     collectDraft(card, id);
     state.sourceDraft.match_patterns.push({ pattern: "", mode: "contains" });

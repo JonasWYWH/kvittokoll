@@ -459,22 +459,27 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .view-head h2 { margin: 0 0 4px; font-size: 17px; }
 .view-head p { margin: 0; max-width: 60ch; }
 
-.source-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-}
+/* Källvyn är en tabell, inte kort: tjugo källor blir annars mest scroll. */
+.sources-table col.c-name { width: 260px; }
+.sources-table col.c-rules { width: auto; }
+.sources-table col.c-count { width: 80px; }
+.sources-table col.c-links { width: 210px; }
+.sources-table col.c-edit { width: 110px; }
 
-.source-card.editing { border-color: var(--accent); }
-.source-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.source-head h3 { margin: 0 0 2px; font-size: 15px; }
-.source-head p { margin: 0; }
-.source-links { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
-.source-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.sources-table td { vertical-align: top; }
+.sources-table td.links { font-size: 13px; }
+.sources-table td.links a { display: block; }
+.sources-table td.c-edit, .sources-table th.c-edit { text-align: right; }
+.sources-table .cell-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 
-.patterns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.source-editor > td { background: var(--neutral-bg); padding: 16px; }
+.source-editor .grid-two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.source-editor h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--muted); }
+
+.source-note { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+
+.patterns { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .pattern {
   display: inline-flex;
@@ -490,8 +495,6 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 
 .grid-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
 .toggles { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 12px; }
-.source-card h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase;
-  letter-spacing: 0.04em; color: var(--muted); }
 .pattern-editor .pattern-row { margin: 0 0 6px; }
 .editor-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
 .editor-actions .spacer { flex: 1; }
