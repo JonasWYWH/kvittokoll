@@ -8,6 +8,8 @@ och en webbapp mot `localhost`.
 > Verktyget används dagligen mot skarp bankdata. Massutskick (flera verifikat
 > i ett mejl) och SMTP är inte byggda — se [Vad som saknas](#vad-som-saknas). Se [Vad som saknas](#vad-som-saknas).
 
+![Arbetslistan med transaktioner grupperade per månad](docs/bilder/arbetslistan.jpg)
+
 ## Kom igång
 
 ```bash
@@ -126,6 +128,8 @@ i profilen eller `AcctSvcrRef` i camt.053.
 
 ## Underlagskällor
 
+![Källvyn med regler, antal kopplade rader och länkar](docs/bilder/kallor.jpg)
+
 Entiteten är en **underlagskälla** — en specifik tjänst eller ett abonnemang,
 inte ett bolag. Google Workspace och Google Cloud är två källor med olika
 portaler och olika fakturor, trots att banktexten är snarlik. Bolaget finns med
@@ -208,6 +212,7 @@ kvittokoll/             logiken
   importers/            camt.053, CSV, profiler
   api.py                API-lagret, vet inget om HTTP
   server.py             HTTP, standardbiblioteket
+docs/bilder/            skärmdumpar till den här filen
 static/                 gränssnittet, vanilla JS
   fonts/                Work Sans och JetBrains Mono, self-hostade
 profiles/               importprofiler
@@ -225,6 +230,8 @@ data/                   din data — ligger i .gitignore
 transaktioner hamnar av misstag i ett publikt repo.
 
 ## Verifikat
+
+![Verifikatrutan med länk till leverantören och uppladdning](docs/bilder/verifikat.jpg)
 
 Verktyget kan inte hämta verifikatet åt dig — det ligger bakom leverantörens
 inloggning. Källans `receipt_url` är därför en genväg, inte en nedladdning: den
