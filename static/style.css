@@ -221,6 +221,13 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .preview-summary b { font-size: 17px; display: block; }
 .preview-summary span { color: var(--muted); font-size: 13px; }
 
+.pattern-row { display: flex; gap: 8px; margin: 8px 0 6px; }
+.pattern-row select { flex: 0 0 auto; }
+.pattern-row input { flex: 1 1 auto; min-width: 0; }
+#source-pattern-result { min-height: 20px; margin: 0; }
+#source-pattern-result.hit { color: var(--sent); }
+#source-pattern-result.miss { color: var(--missing); }
+
 .error-list { max-height: 190px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 8px; }
 .error-list table { border: none; border-radius: 0; }
 .error-list td { font-size: 13px; }

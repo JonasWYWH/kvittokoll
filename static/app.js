@@ -9,6 +9,7 @@ const state = {
   transactions: [],
   sources: [],
   profiles: [],
+  matchModes: [],
   settings: {},
   selected: new Set(),
   openNotes: new Set(),
@@ -64,6 +65,7 @@ async function load() {
   state.settings = data.settings || {};
   state.sources = data.sources || [];
   state.profiles = data.profiles || [];
+  state.matchModes = data.match_modes || [];
   state.transactions = data.transactions || [];
   if (!el("show-not-required").dataset.touched) {
     el("show-not-required").checked = state.settings.hide_not_required === false;
@@ -401,7 +403,17 @@ function openSourceDialog(row) {
   el("source-company").value = "";
   el("source-url").value = "";
   el("source-error").hidden = true;
+
+  el("source-pattern-mode").innerHTML = state.matchModes
+    .map((mode) => `<option value="${mode.id}">${escapeHtml(mode.label)}</option>`)
+    .join("");
+  el("source-pattern").value = row.description;
+  el("source-pattern-result").textContent = "";
+  el("source-pattern-result").className = "muted small";
+
   toggleNewSourceFields();
+  togglePatternFields();
+  testPattern();
   el("source-dialog").showModal();
 }
 
@@ -409,7 +421,62 @@ function toggleNewSourceFields() {
   el("source-new").hidden = el("source-select").value !== "__new__";
 }
 
+function togglePatternFields() {
+  el("source-pattern-fields").hidden = !el("source-learn").checked;
+}
+
+/* Provar mönstret på servern så att normaliseringen är densamma som vid
+   riktig matchning. Att välja läge blint är svårt; det här visar utfallet.
+
+   Biljetten finns för att svaren kan komma i annan ordning än frågorna. Utan
+   den kan resultatet för "HYR" skriva över resultatet för "HYRA" och visa fel
+   antal träffar för det mönster som står i fältet. */
+let patternTimer = null;
+let patternTicket = 0;
+
+function testPattern() {
+  const ticket = ++patternTicket;
+  if (!el("source-learn").checked || !state.sourceTarget) return;
+  clearTimeout(patternTimer);
+  patternTimer = setTimeout(async () => {
+    const result = el("source-pattern-result");
+    const pattern = el("source-pattern").value.trim();
+    if (!pattern) {
+      result.textContent = "";
+      result.className = "muted small";
+      return;
+    }
+    try {
+      const outcome = await request("/api/sources/test-pattern", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pattern,
+          mode: el("source-pattern-mode").value,
+          description: state.sourceTarget.description,
+        }),
+      });
+      if (ticket !== patternTicket) return;
+      const others = outcome.total - (outcome.matches ? 1 : 0);
+      result.className = `small ${outcome.matches ? "hit" : "miss"}`;
+      result.textContent = outcome.matches
+        ? `Träffar den här raden${others > 0 ? ` och ${others} till` : " — och ingen annan"}.`
+        : `Träffar inte den här raden${outcome.total ? ` (men ${outcome.total} andra)` : ""}.`;
+    } catch (error) {
+      if (ticket !== patternTicket) return;
+      result.className = "small miss";
+      result.textContent = error.message;
+    }
+  }, 220);
+}
+
 el("source-select").addEventListener("change", toggleNewSourceFields);
+el("source-learn").addEventListener("change", () => {
+  togglePatternFields();
+  testPattern();
+});
+el("source-pattern").addEventListener("input", testPattern);
+el("source-pattern-mode").addEventListener("change", testPattern);
 
 el("source-save").addEventListener("click", async (event) => {
   event.preventDefault();
@@ -432,6 +499,8 @@ el("source-save").addEventListener("click", async (event) => {
     await patchTransaction(row.id, {
       source_id: sourceId || null,
       add_match_pattern: el("source-learn").checked && Boolean(sourceId),
+      match_pattern: el("source-pattern").value.trim(),
+      match_pattern_mode: el("source-pattern-mode").value,
     });
     el("source-dialog").close();
     await load();

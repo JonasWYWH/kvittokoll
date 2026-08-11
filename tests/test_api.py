@@ -108,10 +108,93 @@ class ApiTest(unittest.TestCase):
             row["id"], {"source_id": created["id"], "add_match_pattern": True}
         )
         self.assertTrue(result["pattern_added"])
-        self.assertIn(
-            "NETLIFY SAN FRANCISCO",
-            self.store.source_by_id(created["id"]).match_patterns,
-        )
+        patterns = self.store.source_by_id(created["id"]).match_patterns
+        self.assertEqual([(p.pattern, p.mode) for p in patterns],
+                         [("NETLIFY SAN FRANCISCO", "contains")])
+
+    def test_monster_kan_sparas_med_lage(self):
+        row = self.transaction("NETLIFY               SAN FRANCISCO")
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        self.api.update_transaction(row["id"], {
+            "source_id": created["id"],
+            "add_match_pattern": True,
+            "match_pattern": "NETLIFY",
+            "match_pattern_mode": "starts_with",
+        })
+        patterns = self.store.source_by_id(created["id"]).match_patterns
+        self.assertEqual([(p.pattern, p.mode) for p in patterns], [("NETLIFY", "starts_with")])
+
+    def test_samma_text_med_olika_lage_ar_tva_regler(self):
+        row = self.transaction("NETLIFY               SAN FRANCISCO")
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        for mode in ("contains", "starts_with"):
+            self.api.update_transaction(row["id"], {
+                "source_id": created["id"], "add_match_pattern": True,
+                "match_pattern": "NETLIFY", "match_pattern_mode": mode,
+            })
+        self.assertEqual(len(self.store.source_by_id(created["id"]).match_patterns), 2)
+
+    def test_samma_text_och_lage_laggs_inte_till_tva_ganger(self):
+        row = self.transaction("NETLIFY               SAN FRANCISCO")
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        first = self.api.update_transaction(row["id"], {
+            "source_id": created["id"], "add_match_pattern": True, "match_pattern": "NETLIFY",
+        })
+        second = self.api.update_transaction(row["id"], {
+            "source_id": created["id"], "add_match_pattern": True, "match_pattern": "NETLIFY",
+        })
+        self.assertTrue(first["pattern_added"])
+        self.assertFalse(second["pattern_added"])
+
+    def test_okant_lage_avvisas(self):
+        row = self.transaction("NETLIFY               SAN FRANCISCO")
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        with self.assertRaises(ApiError):
+            self.api.update_transaction(row["id"], {
+                "source_id": created["id"], "add_match_pattern": True,
+                "match_pattern": "NETLIFY", "match_pattern_mode": "kanske",
+            })
+
+    # -- provning av mönster ----------------------------------------------
+
+    def test_provning_raknar_traffar_i_hela_listan(self):
+        result = self.api.test_pattern({
+            "pattern": "ANTHROPIC", "mode": "starts_with",
+            "description": "ANTHROPIC IRELAND     DUBLIN",
+        })
+        self.assertTrue(result["matches"])
+        self.assertEqual(result["total"], 3)
+
+    def test_provning_visar_nar_laget_ar_for_snavt(self):
+        result = self.api.test_pattern({
+            "pattern": "DUBLIN", "mode": "starts_with",
+            "description": "ANTHROPIC IRELAND     DUBLIN",
+        })
+        self.assertFalse(result["matches"])
+        self.assertEqual(result["total"], 0)
+
+    def test_provning_med_slutar_med_hittar_raden(self):
+        result = self.api.test_pattern({
+            "pattern": "DUBLIN", "mode": "ends_with",
+            "description": "ANTHROPIC IRELAND     DUBLIN",
+        })
+        self.assertTrue(result["matches"])
+        self.assertEqual(result["total"], 2)
+        self.assertTrue(all(s.rstrip().endswith("Dublin") or s.rstrip().endswith("DUBLIN")
+                            for s in result["samples"]))
+
+    def test_provning_avvisar_okant_lage(self):
+        with self.assertRaises(ApiError):
+            self.api.test_pattern({"pattern": "X", "mode": "kanske"})
+
+    def test_provning_med_tomt_monster_ger_noll(self):
+        result = self.api.test_pattern({"pattern": "", "description": "Vad som helst"})
+        self.assertFalse(result["matches"])
+        self.assertEqual(result["total"], 0)
+
+    def test_state_innehaller_lagena(self):
+        modes = [m["id"] for m in self.api.state()["match_modes"]]
+        self.assertEqual(modes, ["contains", "starts_with", "ends_with"])
 
     def test_okand_kalla_avvisas(self):
         row = self.transaction("Utdelning")

@@ -97,13 +97,45 @@ inte ett bolag. Google Workspace och Google Cloud är två källor med olika
 portaler och olika fakturor, trots att banktexten är snarlik. Bolaget finns med
 som fält för gruppering, men styr ingenting.
 
-`match_patterns` matchas som delsträng mot transaktionstexten. Båda sidor
-normaliseras först — versaler, borttagna skiljetecken, kollapsade mellanslag —
-så mönstret `GOOGLE *WORKSPACE` träffar banktexten `Google Workspace_ab Dublin`.
+### Matchningsmönster
 
-Längre mönster har företräde. Träffar två källor lika starkt kopplas raden inte
-automatiskt, utan flaggas som tvetydig. Kopplar du om en rad kan du samtidigt
-låta källan lära sig radens text som nytt mönster.
+Varje mönster har ett läge:
+
+| Läge | JSON | Betyder |
+|---|---|---|
+| innehåller | `contains` (standard) | texten finns någonstans i transaktionstexten |
+| börjar med | `starts_with` | transaktionstexten inleds med texten |
+| slutar med | `ends_with` | transaktionstexten avslutas med texten |
+
+Lägena finns för att `innehåller` ibland är för trubbigt. `börjar med HYRA`
+fångar `Hyra Kontorsgatan 5` men inte `Bilhyra Stockholm` eller
+`Avser hyra april`.
+
+I `sources.json` skrivs det vanliga fallet som en enkel sträng och de
+förankrade som objekt, så att filen förblir handredigerbar:
+
+```json
+"match_patterns": [
+  "GOOGLE *WORKSPACE",
+  { "pattern": "HYRA", "mode": "starts_with" }
+]
+```
+
+Mönstret och transaktionstexten normaliseras på samma sätt innan matchningen —
+versaler, borttagna skiljetecken, kollapsade mellanslag — så `GOOGLE *WORKSPACE`
+träffar banktexten `Google Workspace_ab Dublin`, och en förankring sitter i
+början av den normaliserade texten, inte efter ett skiljetecken.
+
+Mönstret är text, inte ett reguljärt uttryck. Skriver du `A.*B` matchar det
+tecknen `A.*B`, inte "A följt av vad som helst följt av B".
+
+Längre mönster har företräde. Är två lika långa vinner det förankrade —
+`börjar med HYRA` är mer specifikt än `innehåller HYRA`. Är även det lika
+kopplas raden inte automatiskt, utan flaggas som tvetydig.
+
+När du kopplar en rad kan du samtidigt lägga till ett mönster på källan.
+Dialogen provar mönstret medan du skriver och visar hur många av dina
+transaktioner det träffar, så att valet av läge inte blir en gissning.
 
 ## Filer
 

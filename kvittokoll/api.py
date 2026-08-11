@@ -12,9 +12,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from . import importer
 from .importers import ImportError_
 from .importers.profiles import load_profiles
-from .models import Transaction
+from .models import MATCH_CONTAINS, MATCH_MODES, MatchPattern, Transaction
 from .normalize import normalize_text
-from .sources import match_source, new_source, suggest_pattern
+from .sources import MODE_LABELS, compile_pattern, match_source, new_source, suggest_pattern
 from .storage import Store
 
 # Fält i settings.json som får läsas av webbgränssnittet. Mejladresser hör till
@@ -54,6 +54,7 @@ class Api:
                 {"id": profile.id, "name": profile.name, "note": profile.note}
                 for profile in load_profiles(self.store.profiles_dir)
             ],
+            "match_modes": [{"id": mode, "label": MODE_LABELS[mode]} for mode in MATCH_MODES],
             "transactions": [t.to_dict() for t in self._sorted_transactions()],
         }
 
@@ -131,14 +132,18 @@ class Api:
         # §4.3: koppla om och lär källan radens text som nytt mönster.
         pattern_added = False
         if source_changed and changes.get("add_match_pattern") and transaction.source_id:
-            pattern = str(changes.get("match_pattern") or "").strip()
-            if not pattern:
-                pattern = suggest_pattern(transaction.description)
+            text = str(changes.get("match_pattern") or "").strip()
+            if not text:
+                text = suggest_pattern(transaction.description)
+            mode = str(changes.get("match_pattern_mode") or MATCH_CONTAINS).strip().lower()
+            if mode not in MATCH_MODES:
+                raise ApiError("Okänt matchningsläge: {}".format(mode))
             source = self.store.source_by_id(transaction.source_id)
-            if source is not None and pattern:
-                known = {normalize_text(p) for p in source.match_patterns}
-                if normalize_text(pattern) not in known:
-                    source.match_patterns.append(pattern)
+            if source is not None and text:
+                # Samma text med olika läge är två olika regler, inte en dubblett.
+                known = {(normalize_text(p.pattern), p.mode) for p in source.match_patterns}
+                if (normalize_text(text), mode) not in known:
+                    source.match_patterns.append(MatchPattern(pattern=text, mode=mode))
                     self.store.save_sources()
                     pattern_added = True
 
@@ -194,6 +199,29 @@ class Api:
         sources.append(source)
         self.store.save_sources(sources)
         return {"source": source.to_dict()}
+
+    def test_pattern(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Prova ett mönster mot en rad och mot hela listan.
+
+        Att välja mellan "innehåller" och "börjar med" är svårt att göra
+        blint. Den här visar utfallet innan mönstret sparas.
+        """
+        mode = str(data.get("mode") or MATCH_CONTAINS).strip().lower()
+        if mode not in MATCH_MODES:
+            raise ApiError("Okänt matchningsläge: {}".format(mode))
+        regex = compile_pattern(str(data.get("pattern") or ""), mode)
+        description = str(data.get("description") or "")
+
+        if regex is None:
+            return {"matches": False, "total": 0, "samples": [], "normalized": normalize_text(description)}
+
+        hits = [t for t in self.store.transactions() if regex.search(normalize_text(t.description))]
+        return {
+            "matches": bool(regex.search(normalize_text(description))),
+            "total": len(hits),
+            "samples": [t.description for t in hits[:5]],
+            "normalized": normalize_text(description),
+        }
 
     def rematch_sources(self) -> Dict[str, Any]:
         """Kör om källmatchningen på alla okopplade rader.

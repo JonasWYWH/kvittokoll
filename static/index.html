@@ -108,8 +108,15 @@
       </div>
       <label class="toggle">
         <input type="checkbox" id="source-learn" checked>
-        Lär källan radens text som nytt matchningsmönster
+        Lägg till ett matchningsmönster på källan
       </label>
+      <div id="source-pattern-fields">
+        <div class="pattern-row">
+          <select id="source-pattern-mode"></select>
+          <input type="text" id="source-pattern" placeholder="Text att matcha på">
+        </div>
+        <p id="source-pattern-result" class="muted small"></p>
+      </div>
       <p id="source-error" class="error" hidden></p>
       <menu class="dialog-actions">
         <button value="cancel" class="link">Avbryt</button>

@@ -49,6 +49,7 @@ def build_routes(api: Api) -> List[Route]:
         )),
         Route("POST", r"/api/sources", lambda req, m: api.create_source(req.json())),
         Route("POST", r"/api/sources/rematch", lambda req, m: api.rematch_sources()),
+        Route("POST", r"/api/sources/test-pattern", lambda req, m: api.test_pattern(req.json())),
     ]
 
 

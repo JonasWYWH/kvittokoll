@@ -20,6 +20,11 @@ STATUS_NOT_REQUIRED = "not_required"
 RECEIPT_TYPE_DIGITAL = "digital"
 RECEIPT_TYPE_PHYSICAL = "physical"
 
+MATCH_CONTAINS = "contains"
+MATCH_STARTS_WITH = "starts_with"
+MATCH_ENDS_WITH = "ends_with"
+MATCH_MODES = (MATCH_CONTAINS, MATCH_STARTS_WITH, MATCH_ENDS_WITH)
+
 
 def _as_bool(value, default: bool) -> bool:
     if value is None:
@@ -38,6 +43,42 @@ def _as_float(value) -> Optional[float]:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+@dataclass
+class MatchPattern:
+    """Ett matchningsmönster med läge.
+
+    ``contains`` räcker för de flesta handlare, men inte för texter som
+    "HYRA KONTORSGATAN 5" — där vill man fånga allt som *börjar* med HYRA
+    utan att samtidigt dra in "SLUTHYRA" eller "BILHYRA".
+    """
+
+    pattern: str
+    mode: str = MATCH_CONTAINS
+
+    @classmethod
+    def from_any(cls, value) -> "MatchPattern":
+        """Läser både den korta strängformen och objektformen."""
+        if isinstance(value, MatchPattern):
+            return value
+        if isinstance(value, dict):
+            mode = str(value.get("mode") or MATCH_CONTAINS).strip().lower()
+            return cls(
+                pattern=str(value.get("pattern") or ""),
+                mode=mode if mode in MATCH_MODES else MATCH_CONTAINS,
+            )
+        return cls(pattern=str(value or ""))
+
+    def to_json(self):
+        """Sträng när läget är contains, objekt annars.
+
+        Håller sources.json läsbar och handredigerbar i normalfallet, och
+        gör att filer skrivna före lägena fortfarande går att läsa.
+        """
+        if self.mode == MATCH_CONTAINS:
+            return self.pattern
+        return {"pattern": self.pattern, "mode": self.mode}
 
 
 @dataclass
@@ -175,10 +216,13 @@ class Source:
     def __post_init__(self) -> None:
         if not self.filename_tag:
             self.filename_tag = slugify(self.name)
+        # Mönstren får komma in som strängar, dictar eller MatchPattern —
+        # inuti Source är de alltid MatchPattern.
+        self.match_patterns = [MatchPattern.from_any(p) for p in self.match_patterns]
 
-    def normalized_patterns(self) -> List[str]:
-        patterns = [normalize_text(p) for p in self.match_patterns]
-        return [p for p in patterns if p]
+    def pattern_texts(self) -> List[str]:
+        """Bara mönstertexterna, normaliserade. Används för dubblettkoll."""
+        return [normalize_text(p.pattern) for p in self.match_patterns if p.pattern]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Source":
@@ -191,7 +235,9 @@ class Source:
             receipt_type=data.get("receipt_type") or RECEIPT_TYPE_DIGITAL,
             requires_receipt=_as_bool(data.get("requires_receipt"), True),
             auto_send_configured=_as_bool(data.get("auto_send_configured"), False),
-            match_patterns=list(data.get("match_patterns") or []),
+            match_patterns=[
+                MatchPattern.from_any(p) for p in (data.get("match_patterns") or [])
+            ],
             filename_tag=data.get("filename_tag") or "",
             note=data.get("note") or "",
             created_at=data.get("created_at") or "",
@@ -207,7 +253,7 @@ class Source:
             "receipt_type": self.receipt_type,
             "requires_receipt": self.requires_receipt,
             "auto_send_configured": self.auto_send_configured,
-            "match_patterns": self.match_patterns,
+            "match_patterns": [p.to_json() for p in self.match_patterns],
             "filename_tag": self.filename_tag,
             "note": self.note,
             "created_at": self.created_at,
