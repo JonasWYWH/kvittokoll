@@ -1,0 +1,13 @@
+{
+  "recipient_email": "xxxxx@inbox.example.se",
+  "sender_email": "mig@mittforetag.se",
+  "subject_template": "Verifikat {date} {source} {amount}",
+  "body_template": "Verifikat för transaktion {date}, {source}, {amount} kr.",
+  "filename_template": "{date}_{amount}_{tag}",
+  "data_dir": "./data",
+  "receipts_dir": "./data/receipts",
+  "profiles_dir": "./profiles",
+  "backups_dir": "./data/backups",
+  "trash_dir": "./data/trash",
+  "hide_not_required": true
+}

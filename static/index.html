@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kvittokoll</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Kvittokoll</h1>
+    <div class="topbar-actions">
+      <button id="import-open" class="primary">Importera transaktioner</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="summary" class="summary" hidden></section>
+
+    <section class="filters">
+      <input type="search" id="filter-text" placeholder="Sök i text, källa eller anteckning">
+      <select id="filter-status">
+        <option value="">Alla statusar</option>
+        <option value="missing">Saknar verifikat</option>
+        <option value="has_receipt">Har verifikat</option>
+        <option value="sent">Skickat</option>
+        <option value="not_required">Inget krav</option>
+      </select>
+      <select id="filter-source">
+        <option value="">Alla källor</option>
+      </select>
+      <label class="field">Från <input type="date" id="filter-from"></label>
+      <label class="field">Till <input type="date" id="filter-to"></label>
+      <select id="sort">
+        <option value="date-desc">Datum, nyast först</option>
+        <option value="date-asc">Datum, äldst först</option>
+        <option value="amount-asc">Belopp, störst utgift först</option>
+        <option value="amount-desc">Belopp, störst inbetalning först</option>
+      </select>
+      <label class="toggle">
+        <input type="checkbox" id="show-not-required">
+        Visa även rader utan verifikatkrav
+      </label>
+      <button id="filter-reset" class="link">Nollställ</button>
+    </section>
+
+    <section id="bulk" class="bulk" hidden>
+      <span id="bulk-count"></span>
+      <button data-bulk="not-required">Kräver inget verifikat</button>
+      <button data-bulk="required">Kräver verifikat</button>
+      <button data-bulk="clear" class="link">Avmarkera</button>
+    </section>
+
+    <div id="list"></div>
+    <p id="empty" class="empty" hidden></p>
+  </main>
+
+  <dialog id="import-dialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Importera transaktioner</h2>
+      <p class="muted">
+        Exportera från internetbanken som CSV eller camt.053-XML. Importen lägger
+        bara till rader — den ändrar aldrig något du redan gjort.
+      </p>
+
+      <div id="import-step-file">
+        <label class="field block">
+          Fil
+          <input type="file" id="import-file" accept=".csv,.xml,.txt">
+        </label>
+        <label class="field block">
+          Importprofil
+          <select id="import-profile">
+            <option value="">Välj automatiskt</option>
+          </select>
+        </label>
+        <p class="muted small">XML enligt camt.053 tolkas utan profil.</p>
+      </div>
+
+      <div id="import-step-preview" hidden>
+        <div id="import-summary" class="preview-summary"></div>
+        <div id="import-errors"></div>
+        <div id="import-sample"></div>
+      </div>
+
+      <p id="import-error" class="error" hidden></p>
+
+      <menu class="dialog-actions">
+        <button value="cancel" id="import-cancel" class="link">Avbryt</button>
+        <button value="default" id="import-preview" class="primary">Förhandsgranska</button>
+        <button value="default" id="import-confirm" class="primary" hidden>Bekräfta import</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="source-dialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Koppla källa</h2>
+      <p class="muted" id="source-context"></p>
+      <label class="field block">
+        Underlagskälla
+        <select id="source-select"></select>
+      </label>
+      <div id="source-new" hidden>
+        <label class="field block">Namn <input type="text" id="source-name"></label>
+        <label class="field block">Bolag <input type="text" id="source-company"></label>
+        <label class="field block">Länk till verifikat <input type="url" id="source-url"></label>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="source-learn" checked>
+        Lär källan radens text som nytt matchningsmönster
+      </label>
+      <p id="source-error" class="error" hidden></p>
+      <menu class="dialog-actions">
+        <button value="cancel" class="link">Avbryt</button>
+        <button value="default" id="source-save" class="primary">Spara</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

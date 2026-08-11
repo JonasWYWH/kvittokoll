@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Acct><Id><IBAN>SE0000000000000000000000</IBAN></Id></Acct>
+      <Ntry>
+        <Amt Ccy="SEK">449.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-03-14</Dt></BookgDt>
+        <AcctSvcrRef>SWD-2026-0001</AcctSvcrRef>
+        <NtryDtls><TxDtls><RmtInf><Ustrd>GOOGLE *WORKSPACE_ABC</Ustrd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="SEK">12500.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <BookgDt><Dt>2026-03-15</Dt></BookgDt>
+        <AddtlNtryInf>Bankgiro inbetalning 12345678</AddtlNtryInf>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="SEK">99.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <BookgDt><Dt>2026-03-16</Dt></BookgDt>
+        <NtryDtls><TxDtls><RltdPties><Cdtr><Nm>Netlify Inc</Nm></Cdtr></RltdPties></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="SEK">50.00</Amt>
+        <BookgDt><Dt>2026-03-17</Dt></BookgDt>
+        <AddtlNtryInf>Saknar CdtDbtInd</AddtlNtryInf>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

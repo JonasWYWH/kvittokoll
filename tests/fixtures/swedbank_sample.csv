@@ -1,0 +1,12 @@
+* Transaktionsrapport Period 2026-08-01 – 2026-08-11 Skapad 2026-08-11 07:39 CEST
+Radnr,Clnr,Kontonr,Produkt,Valuta,Bokfdag,Transdag,Valutadag,Referens,Text,Belopp,Saldo
+1,8000,0012345678,"Företagskonto",SEK,2026-08-11,2026-08-11,,"ANTHROPIC IRELAND     DUBLIN","Kortköp/uttag",-199.00,471341.60
+2,8000,0012345678,"Företagskonto",SEK,2026-08-10,2026-08-10,2026-08-10,"ANTHROPIC* CLAUDE SUB SAN FRANCISCO","Kortköp/uttag",-1250.00,471540.60
+3,8000,0012345678,"Företagskonto",SEK,2026-08-10,2026-08-10,2026-08-10,"ANTHROPIC* CLAUDE SUB SAN FRANCISCO","Kortköp/uttag",-1250.00,472790.60
+4,8000,0012345678,"Företagskonto",SEK,2026-08-10,2026-08-10,2026-08-10,"NETLIFY               SAN FRANCISCO","Kortköp/uttag",-190.00,474040.60
+5,8000,0012345678,"Företagskonto",SEK,2026-08-10,2026-08-09,2026-08-09,"Utdelning","Överföring via internet",-25000.00,474230.60
+6,8000,0012345678,"Företagskonto",SEK,2026-08-03,2026-08-02,2026-08-02,"Google CLOUD 46DG53 K8326","Kortköp/uttag",-19.40,499230.60
+7,8000,0012345678,"Företagskonto",SEK,2026-08-03,2026-08-02,2026-08-02,"Google Workspace_ab Dublin","Kortköp/uttag",-750.00,499250.00
+8,8000,0012345678,"Företagskonto",SEK,2026-08-03,2026-08-03,2026-08-04,"12345678","Bankgiro inbetalning",50000.00,500000.00
+9,8000,0012345678,"Företagskonto",SEK,inte-ett-datum,2026-08-01,2026-08-01,"TRASIG DATUMRAD","Kortköp/uttag",-100.00,450000.00
+10,8000,0012345678,"Företagskonto",SEK,2026-07-30,2026-07-30,2026-07-30,"TRASIGT BELOPP","Kortköp/uttag",tolv kronor,450000.00

@@ -1,0 +1,16 @@
+# Verktygets data — transaktioner, verifikat, backuper. Aldrig i repot.
+data/
+receipts/
+backups/
+settings.json
+
+# Riktiga bankexporter som ligger kvar for handtestning.
+Transactions/
+*.csv
+!tests/fixtures/*.csv
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store

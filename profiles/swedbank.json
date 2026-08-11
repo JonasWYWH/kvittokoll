@@ -1,0 +1,21 @@
+{
+  "name": "Swedbank – Transaktionsrapport (CSV)",
+  "delimiter": ",",
+  "encoding": "cp1252",
+  "skip_rows": 1,
+  "date_format": "%Y-%m-%d",
+  "decimal_separator": ".",
+  "thousands_separator": "",
+  "quotechar": "\"",
+  "columns": {
+    "date": "Bokfdag",
+    "description": "Referens",
+    "type": "Text",
+    "amount": "Belopp",
+    "balance": "Saldo",
+    "currency": "Valuta",
+    "account": "{Produkt} {Clnr}-{Kontonr}",
+    "transaction_id": null
+  },
+  "note": "Första raden är en rubrik med period och skapandetidpunkt, därav skip_rows: 1. Handlarnamnet ligger i Referens; kolumnen Text innehåller transaktionstypen (Kortköp/uttag, Autogiro, Bg-bet. via internet). Radnr är radens plats i just den exportfilen och duger inte som transaktions-ID – därför transaction_id: null, så att innehållsnyckeln används istället. Byt date till Transdag om du hellre vill gruppera på transaktionsdag än bokföringsdag."
+}
