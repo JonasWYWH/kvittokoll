@@ -150,6 +150,7 @@ kvittokoll/             logiken
   api.py                API-lagret, vet inget om HTTP
   server.py             HTTP, standardbiblioteket
 static/                 gränssnittet, vanilla JS
+  fonts/                Work Sans och JetBrains Mono, self-hostade
 profiles/               importprofiler
 data/                   din data — ligger i .gitignore
   transactions.json
@@ -159,6 +160,16 @@ data/                   din data — ligger i .gitignore
 
 `data/`, `receipts/` och `settings.json` ligger i `.gitignore`. Ingen av dina
 transaktioner hamnar av misstag i ett publikt repo.
+
+## Typsnitt
+
+Work Sans för text, JetBrains Mono för belopp, datum och antal — siffror som
+ska gå att jämföra kolumnvis mår bra av att vara lika breda.
+
+Båda ligger i `static/fonts/` istället för att hämtas från Google Fonts CDN, så
+att verktyget fungerar utan internet och inte skickar en förfrågan till en
+tredje part varje gång du öppnar din bokföring. Cirka 158 kB, SIL OFL 1.1. Se
+`static/fonts/README.md`.
 
 ## Begränsningar
 

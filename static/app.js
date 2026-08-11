@@ -191,8 +191,9 @@ function renderSummary(rows) {
   summary.innerHTML = `
     <span class="headline">Av <span class="count">${rows.length}</span> transaktioner${period}
       saknar <span class="count missing">${missing}</span> verifikat.</span>
-    <span class="muted">${hasReceipt} har verifikat men är inte skickade · ${sent} skickade ·
-      ${rows.length - requiring.length} utan verifikatkrav</span>`;
+    <span class="muted"><span class="num">${hasReceipt}</span> har verifikat men är inte
+      skickade · <span class="num">${sent}</span> skickade ·
+      <span class="num">${rows.length - requiring.length}</span> utan verifikatkrav</span>`;
 }
 
 function describePeriod(rows) {
@@ -212,8 +213,11 @@ function renderMonth(key, rows) {
   const head = document.createElement("h2");
   head.className = "month-head";
   head.innerHTML = `${monthLabel(key)}
-    <span class="muted">${rows.length} rader · netto ${formatAmount(total)} kr${
-      missing ? ` · <strong class="badge missing">${missing} saknar verifikat</strong>` : ""
+    <span class="muted"><span class="num">${rows.length}</span> rader ·
+      netto <span class="num">${formatAmount(total)}</span> kr${
+      missing
+        ? ` · <strong class="badge missing"><span class="num">${missing}</span> saknar verifikat</strong>`
+        : ""
     }</span>`;
   section.appendChild(head);
 
@@ -269,7 +273,7 @@ function renderRow(row) {
     <td><div class="source-cell">${sourceCell}
       <button class="tiny" data-action="source">Koppla…</button></div></td>
     <td><span class="badge ${row.status}">${STATUS_LABEL[row.status]}</span></td>
-    <td>${row.sent_at ? row.sent_at.slice(0, 10) : "—"}</td>
+    <td class="date">${row.sent_at ? row.sent_at.slice(0, 10) : "—"}</td>
     <td class="actions">
       <button class="tiny" data-action="toggle-required">${
         row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
@@ -294,7 +298,7 @@ function renderNoteRow(row) {
 function renderBulk() {
   const bulk = el("bulk");
   bulk.hidden = state.selected.size === 0;
-  el("bulk-count").textContent = `${state.selected.size} rader markerade`;
+  el("bulk-count").innerHTML = `<span class="num">${state.selected.size}</span> rader markerade`;
 }
 
 /* ---------- åtgärder ---------- */
@@ -391,7 +395,9 @@ el("bulk").addEventListener("click", async (event) => {
 
 function openSourceDialog(row) {
   state.sourceTarget = row;
-  el("source-context").textContent = `${row.date} · ${formatAmount(row.amount)} kr · ${row.description}`;
+  el("source-context").innerHTML =
+    `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
+    ` · ${escapeHtml(row.description)}`;
   el("source-select").innerHTML =
     '<option value="">Ingen källa</option>' +
     state.sources
@@ -604,7 +610,7 @@ function renderPreview(preview) {
     ? `<p class="error small">${preview.errors.length} rader kunde inte tolkas. Bekräftar du
          importen hoppas de över — inget skrivs för dem.</p>
        <div class="error-list"><table><tbody>${preview.errors
-         .map((error) => `<tr><td>rad ${error.line}</td><td>${escapeHtml(error.reason)}</td>
+         .map((error) => `<tr><td>rad <span class="num">${error.line}</span></td><td>${escapeHtml(error.reason)}</td>
            <td class="muted">${escapeHtml(error.raw)}</td></tr>`)
          .join("")}</tbody></table></div>`
     : "";
