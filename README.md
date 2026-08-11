@@ -200,6 +200,11 @@ inloggning. Källans `receipt_url` är därför en genväg, inte en nedladdning:
 öppnas i en ny flik så att du slipper leta upp sidan varje gång, och källans
 anteckning beskriver sista biten av vägen dit.
 
+Saknar källan länk går den att lägga till direkt i uppladdningsrutan, utan att
+gå omvägen via Källor. Den sparas på källan och gäller därmed alla dess köp.
+Skriver du en adress utan `https://` läggs det på — annars blir länken relativ
+och leder fel.
+
 Filen du laddar upp **kopieras** in under `data/receipts/ÅÅÅÅ-MM/` så att den
 överlever att nedladdningsmappen töms. Originalfilen lämnas orörd och
 originalnamnet sparas.

@@ -706,16 +706,7 @@ function openReceiptDialog(row) {
     `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
     ` · ${escapeHtml(row.description)}`;
 
-  // Länken är en genväg till leverantörens sida, inget verktyget kan hämta åt
-  // dig — inloggningen ligger hos dem.
-  el("receipt-link-row").innerHTML = source && source.receipt_url
-    ? `<a class="button-like" href="${escapeHtml(source.receipt_url)}" target="_blank"
-         rel="noopener">Öppna ${escapeHtml(source.name)} ↗</a>`
-    : source
-      ? `<span class="muted small">${escapeHtml(source.name)} har ingen länk sparad —
-           lägg till den under Källor så slipper du leta nästa gång.</span>`
-      : `<span class="muted small">Ingen källa kopplad. Kopplar du en källa med
-           länk hamnar genvägen hit.</span>`;
+  renderReceiptLink(source);
   el("receipt-note").textContent = source && source.note ? source.note : "";
 
   const current = el("receipt-current");
@@ -735,6 +726,72 @@ function openReceiptDialog(row) {
   el("receipt-error").hidden = true;
   el("receipt-dialog").showModal();
 }
+
+/* Länken är en genväg till leverantörens sida, inget verktyget kan hämta åt
+   dig — inloggningen ligger hos dem. Saknas den ska den gå att lägga till här,
+   utan att man stänger fönstret och börjar om. */
+function renderReceiptLink(source) {
+  const row = el("receipt-link-row");
+  el("receipt-link-edit").hidden = true;
+  el("receipt-link-error").hidden = true;
+
+  if (!source) {
+    row.innerHTML = `<span class="muted small">Ingen källa kopplad. Kopplar du en
+      källa med länk hamnar genvägen hit.</span>`;
+    return;
+  }
+  row.innerHTML = source.receipt_url
+    ? `<a class="button-like" href="${escapeHtml(source.receipt_url)}" target="_blank"
+         rel="noopener">Öppna ${escapeHtml(source.name)} ↗</a>
+       <button class="link-quiet" id="receipt-link-edit-open">Ändra länken</button>`
+    : `<span class="muted small">${escapeHtml(source.name)} har ingen länk sparad.</span>
+       <button class="link-quiet" id="receipt-link-edit-open">Lägg till länk</button>`;
+
+  el("receipt-link-edit-open").addEventListener("click", (event) => {
+    event.preventDefault();
+    el("receipt-link-input").value = source.receipt_url || "";
+    el("receipt-link-edit").hidden = false;
+    el("receipt-link-input").focus();
+  });
+}
+
+function currentReceiptSource() {
+  return state.receiptTarget ? sourceById(state.receiptTarget.source_id) : null;
+}
+
+el("receipt-link-cancel").addEventListener("click", (event) => {
+  event.preventDefault();
+  el("receipt-link-edit").hidden = true;
+  el("receipt-link-error").hidden = true;
+});
+
+el("receipt-link-save").addEventListener("click", async (event) => {
+  event.preventDefault();
+  const source = currentReceiptSource();
+  if (!source) return;
+  try {
+    const result = await request(`/api/sources/${encodeURIComponent(source.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receipt_url: el("receipt-link-input").value.trim() }),
+    });
+    // Länken hör till källan, inte till raden — den gäller alla dess köp.
+    const index = state.sources.findIndex((s) => s.id === source.id);
+    if (index >= 0) state.sources[index] = result.source;
+    renderReceiptLink(result.source);
+    render();
+  } catch (error) {
+    el("receipt-link-error").hidden = false;
+    el("receipt-link-error").textContent = error.message;
+  }
+});
+
+el("receipt-link-input").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    el("receipt-link-save").click();
+  }
+});
 
 async function uploadReceipt(row, file) {
   const form = new FormData();

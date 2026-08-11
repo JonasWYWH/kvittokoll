@@ -458,6 +458,9 @@ button.danger { color: var(--missing); }
 }
 
 .fetch-step { margin: 14px 0; }
+.link-edit { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.link-edit input { flex: 1 1 auto; min-width: 0; }
+#receipt-link-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .fetch-step p { margin: 4px 0; }
 
 .dropzone {

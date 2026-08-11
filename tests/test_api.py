@@ -226,6 +226,21 @@ class ApiTest(unittest.TestCase):
             self.api.update_source(created["id"], {
                 "match_patterns": [{"pattern": "HYRA", "mode": "nastan"}]})
 
+    def test_lank_utan_schema_far_https(self):
+        """En länk utan schema blir relativ i webbläsaren och leder fel."""
+        created = self.api.create_source({"name": "Google Workspace"})["source"]
+        result = self.api.update_source(created["id"], {
+            "receipt_url": "admin.google.com/ac/billing/history",
+            "settings_url": "https://admin.google.com/settings",
+        })["source"]
+        self.assertEqual(result["receipt_url"], "https://admin.google.com/ac/billing/history")
+        self.assertEqual(result["settings_url"], "https://admin.google.com/settings")
+
+    def test_tom_lank_far_forbli_tom(self):
+        created = self.api.create_source({"name": "X", "receipt_url": "https://exempel.se"})["source"]
+        result = self.api.update_source(created["id"], {"receipt_url": ""})["source"]
+        self.assertEqual(result["receipt_url"], "")
+
     def test_okand_verifikattyp_avvisas(self):
         created = self.api.create_source({"name": "Netlify"})["source"]
         with self.assertRaises(ApiError):

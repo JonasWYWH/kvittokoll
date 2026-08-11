@@ -42,6 +42,14 @@ PUBLIC_SETTINGS = (
 )
 
 
+def _normalize_url(value) -> str:
+    """En länk utan schema blir relativ och leder fel. Antag https."""
+    url = str(value or "").strip()
+    if not url or "://" in url or url.startswith("mailto:"):
+        return url
+    return "https://" + url
+
+
 class ApiError(Exception):
     def __init__(self, message: str, status: int = 400) -> None:
         super().__init__(message)
@@ -380,9 +388,12 @@ class Api:
             if not name:
                 raise ApiError("Källan behöver ett namn.")
             source.name = name
-        for field in ("company", "receipt_url", "settings_url", "note"):
+        for field in ("company", "note"):
             if field in data:
                 setattr(source, field, str(data[field] or "").strip())
+        for field in ("receipt_url", "settings_url"):
+            if field in data:
+                setattr(source, field, _normalize_url(data[field]))
         if "receipt_type" in data:
             receipt_type = str(data["receipt_type"] or "").strip().lower()
             if receipt_type not in (RECEIPT_TYPE_DIGITAL, RECEIPT_TYPE_PHYSICAL):
