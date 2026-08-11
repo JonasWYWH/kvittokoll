@@ -117,6 +117,21 @@ def parse_date(raw, date_format: str = "%Y-%m-%d") -> str:
         )
 
 
+# Svensk bokstavsordning: å, ä, ö kommer efter z. Vanlig strängsortering
+# lägger dem visserligen efter z, men i fel inbördes ordning (ä före å).
+# Tecknen i privatområdet sorterar efter alla vanliga bokstäver.
+_COLLATION = {
+    "å": "\ue001", "ä": "\ue002", "ö": "\ue003",
+    "æ": "\ue002", "ø": "\ue003",
+}
+
+
+def sort_key(text) -> str:
+    """Sorteringsnyckel som följer svensk bokstavsordning."""
+    lowered = str(text or "").casefold()
+    return "".join(_COLLATION.get(character, character) for character in lowered)
+
+
 def now_iso() -> str:
     """Lokal tid med tidszonsoffset, sekundupplösning."""
     return datetime.now().astimezone().isoformat(timespec="seconds")

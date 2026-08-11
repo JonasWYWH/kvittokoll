@@ -14,7 +14,13 @@ from kvittokoll.models import (
     MatchPattern,
     Source,
 )
-from kvittokoll.sources import compile_pattern, match_source, new_source, unique_source_id
+from kvittokoll.normalize import sort_key
+from kvittokoll.sources import (
+    compile_pattern,
+    match_source,
+    new_source,
+    unique_source_id,
+)
 
 
 def source(source_id, patterns, **extra):
@@ -163,6 +169,40 @@ class MatchPatternSerializationTest(unittest.TestCase):
         restored = Source.from_dict({"id": "s", "name": "S", "match_patterns": ["GOOGLE WORKSPACE"]})
         self.assertEqual(restored.match_patterns[0].mode, MATCH_CONTAINS)
         self.assertEqual(match_source("Google Workspace_ab", [restored])[0], "s")
+
+
+class SortOrderTest(unittest.TestCase):
+    """Källorna listas i svensk bokstavsordning, på namn — inte på bolag."""
+
+    def test_svenska_bokstaver_hamnar_efter_z(self):
+        names = ["Örn", "Ziko Bank", "Åke", "Ärlig", "Alfa"]
+        self.assertEqual(
+            sorted(names, key=sort_key), ["Alfa", "Ziko Bank", "Åke", "Ärlig", "Örn"]
+        )
+
+    def test_skiftlage_spelar_ingen_roll(self):
+        names = ["google Workspace", "GITHUB", "AIMO Parkering"]
+        self.assertEqual(
+            sorted(names, key=sort_key), ["AIMO Parkering", "GITHUB", "google Workspace"]
+        )
+
+    def test_store_listar_kallor_i_namnordning(self):
+        import json
+        import shutil
+        import tempfile
+        from pathlib import Path as P
+
+        from helpers import temp_store
+
+        tmp = P(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, str(tmp), True)
+        store = temp_store(tmp, sources=[
+            {"id": "b", "name": "Örn", "company": "Alfa"},
+            {"id": "a", "name": "AIMO Parkering", "company": "Zeta"},
+            {"id": "c", "name": "GITHUB", "company": "Microsoft"},
+        ])
+        self.assertEqual([s.name for s in store.sources()],
+                         ["AIMO Parkering", "GITHUB", "Örn"])
 
 
 class SourceIdTest(unittest.TestCase):

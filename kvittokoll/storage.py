@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from .models import Source, Transaction
-from .normalize import now_iso
+from .normalize import now_iso, sort_key
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "recipient_email": "",
@@ -133,7 +133,9 @@ class Store:
     def sources(self) -> List[Source]:
         if self._sources is None:
             raw = read_json(self.sources_path, default=[]) or []
-            self._sources = [Source.from_dict(item) for item in raw]
+            self._sources = sorted(
+                (Source.from_dict(item) for item in raw), key=lambda s: sort_key(s.name)
+            )
         return self._sources
 
     def source_by_id(self, source_id: str) -> Optional[Source]:
@@ -146,7 +148,10 @@ class Store:
         if sources is not None:
             self._sources = list(sources)
         rows = self.sources()
-        rows.sort(key=lambda s: (s.company.lower(), s.name.lower()))
+        # Namnordning, inte bolagsordning. Bolaget är ett fält för läsbarhet
+        # och grupperar ingenting — att sortera på det gav en lista där
+        # "GITHUB" hamnade före "AIMO Parkering".
+        rows.sort(key=lambda s: sort_key(s.name))
         write_json_atomic(self.sources_path, [s.to_dict() for s in rows])
 
     def save_settings(self, settings: Optional[Dict[str, Any]] = None) -> None:
