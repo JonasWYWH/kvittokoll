@@ -29,8 +29,9 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 
 1. Exportera transaktioner från internetbanken som CSV eller camt.053-XML.
 2. **Importera transaktioner** → välj fil → förhandsgranska → bekräfta.
-3. Markera vilka rader som inte kräver verifikat. De försvinner ur arbetslistan
-   men finns kvar — växla **Visa även rader utan verifikatkrav** för att se dem.
+3. Dölj rader som inte kräver verifikat med det överstrukna ögat längst till
+   höger. De försvinner ur arbetslistan men finns kvar — växla **Visa även rader
+   utan verifikatkrav** för att se dem, och ögat för att ta tillbaka dem.
 4. Koppla rader till underlagskällor. Källan bär länken dit verifikatet hämtas.
 5. Klicka **Ladda upp** i verifikatkolumnen. Modalen visar källans länk — öppna
    den, logga in, ladda hem filen, och ladda upp den. Du kan också dra filen

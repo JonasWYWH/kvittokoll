@@ -13,7 +13,6 @@ const state = {
   paths: {},
   settings: {},
   selected: new Set(),
-  openNotes: new Set(),
   staged: null,
   sourceTarget: null,
   view: "list",
@@ -32,6 +31,16 @@ const MONTHS = [
   "januari", "februari", "mars", "april", "maj", "juni",
   "juli", "augusti", "september", "oktober", "november", "december",
 ];
+
+const ICON_HIDE = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"
+  fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+  <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z"/>
+  <circle cx="10" cy="10" r="2.3"/><path d="M3.5 16.5 16.5 3.5"/></svg>`;
+
+const ICON_SHOW = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"
+  fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+  <path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z"/>
+  <circle cx="10" cy="10" r="2.3"/></svg>`;
 
 const STATUS_LABEL = {
   missing: "Saknar verifikat",
@@ -241,12 +250,11 @@ function renderMonth(key, rows) {
       <th class="amount">Belopp</th>
       <th>Verifikat</th>
       <th>Skickat</th>
-      <th>Åtgärder</th>
+      <th class="row-actions"><span class="sr-only">Åtgärder</span></th>
     </tr></thead>`;
   const body = document.createElement("tbody");
   for (const row of rows) {
     body.appendChild(renderRow(row));
-    if (state.openNotes.has(row.id)) body.appendChild(renderNoteRow(row));
   }
   table.appendChild(body);
   section.appendChild(table);
@@ -313,24 +321,14 @@ function renderRow(row) {
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
     <td>${receiptCell(row)}</td>
     <td class="date">${sentCell(row)}</td>
-    <td class="actions">
-      <button class="tiny" data-action="toggle-required">${
-        row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
-      }</button>
-      <button class="tiny" data-action="note">${row.note ? "Anteckning ✱" : "Anteckning"}</button>
+    <td class="row-actions">
+      <button class="icon" data-action="toggle-required"
+        title="${row.requires_receipt
+          ? "Dölj raden — den kräver inget verifikat"
+          : "Visa raden — den kräver verifikat"}"
+        aria-label="${row.requires_receipt ? "Dölj raden" : "Visa raden"}"
+      >${row.requires_receipt ? ICON_HIDE : ICON_SHOW}</button>
     </td>`;
-  return tr;
-}
-
-function renderNoteRow(row) {
-  const tr = document.createElement("tr");
-  tr.className = "note-row";
-  tr.dataset.id = row.id;
-  tr.innerHTML = `<td></td><td colspan="6">
-    <textarea data-note="${escapeHtml(row.id)}"
-      placeholder="Anteckning om raden">${escapeHtml(row.note)}</textarea>
-    <div class="actions"><button class="tiny primary" data-action="note-save">Spara</button>
-      <button class="tiny link" data-action="note-close">Stäng</button></div></td>`;
   return tr;
 }
 
@@ -373,18 +371,6 @@ el("list").addEventListener("click", async (event) => {
       await patchTransaction(id, changes);
       if (changes.apply_to_source) await load();
       else render();
-    } else if (button.dataset.action === "note") {
-      if (state.openNotes.has(id)) state.openNotes.delete(id);
-      else state.openNotes.add(id);
-      render();
-    } else if (button.dataset.action === "note-close") {
-      state.openNotes.delete(id);
-      render();
-    } else if (button.dataset.action === "note-save") {
-      const textarea = document.querySelector(`textarea[data-note="${CSS.escape(id)}"]`);
-      await patchTransaction(id, { note: textarea.value });
-      state.openNotes.delete(id);
-      render();
     } else if (button.dataset.action === "source") {
       openSourceDialog(row);
     } else if (button.dataset.action === "receipt") {
