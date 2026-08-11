@@ -125,14 +125,14 @@ function escapeHtml(value) {
 
 /* ---------- filter och sortering ---------- */
 
-function visibleTransactions() {
+/* Rader som klarar allt utom statusfiltret. Hinkarnas räknare bygger på den
+   här mängden, så att siffran visar vad ett klick faktiskt skulle ge. */
+function baseTransactions() {
   const query = el("filter-text").value.trim().toLowerCase();
-  const status = el("filter-status").value;
   const source = el("filter-source").value;
   const from = el("filter-from").value;
   const to = el("filter-to").value;
-  let rows = state.transactions.filter((row) => {
-    if (status && row.status !== status) return false;
+  return state.transactions.filter((row) => {
     if (source === "__none__" && row.source_id) return false;
     if (source && source !== "__none__" && row.source_id !== source) return false;
     if (from && row.date < from) return false;
@@ -147,22 +147,34 @@ function visibleTransactions() {
     }
     return true;
   });
+}
+
+function activeBuckets() {
+  return new Set(
+    [...document.querySelectorAll("input[data-bucket]:checked")].map((i) => i.dataset.bucket)
+  );
+}
+
+function visibleTransactions() {
+  const active = activeBuckets();
+  const rows = baseTransactions().filter(
+    (row) => active.size === 0 || active.has(row.status)
+  );
 
   const [key, direction] = el("sort").value.split("-");
   const sign = direction === "asc" ? 1 : -1;
-  rows = rows.slice().sort((a, b) => {
+  return rows.slice().sort((a, b) => {
     if (key === "amount") return (a.amount - b.amount) * sign;
     if (a.date !== b.date) return a.date < b.date ? -sign : sign;
     return a.id < b.id ? -sign : sign;
   });
-  return rows;
 }
 
 /* ---------- rendering ---------- */
 
 function render() {
   const rows = visibleTransactions();
-  renderSummary(rows);
+  renderBuckets();
   renderBulk();
 
   const list = el("list");
@@ -196,38 +208,36 @@ function render() {
 /* Dolda rader visas per månad. Man arbetar med en månad i taget, och en
    global växlare tvingar fram allt eller inget. */
 function monthIsExpanded(key) {
-  if (el("filter-status").value === "not_required") return true;
+  // Har man bett om dolda rader ska de visas, oavsett månadsväxlarna.
+  if (activeBuckets().has("not_required")) return true;
   return state.expandedMonths.has(key);
 }
 
-function renderSummary(rows) {
-  const summary = el("summary");
-  if (!state.transactions.length) {
-    summary.hidden = true;
-    return;
+const BUCKETS = [
+  { status: "missing", label: "Saknar verifikat" },
+  { status: "has_receipt", label: "Har verifikat" },
+  { status: "sent", label: "Skickat" },
+  { status: "not_required", label: "Dolda" },
+];
+
+function renderBuckets() {
+  const active = activeBuckets();
+  const counts = {};
+  for (const row of baseTransactions()) {
+    counts[row.status] = (counts[row.status] || 0) + 1;
   }
-  summary.hidden = false;
-
-  const requiring = rows.filter((row) => row.requires_receipt);
-  const missing = requiring.filter((row) => row.status === "missing").length;
-  const hasReceipt = requiring.filter((row) => row.status === "has_receipt").length;
-  const sent = requiring.filter((row) => row.status === "sent").length;
-  const period = describePeriod(rows);
-
-  summary.innerHTML = `
-    <span class="headline">Av <span class="count">${rows.length}</span> transaktioner${period}
-      saknar <span class="count missing">${missing}</span> verifikat.</span>
-    <span class="muted"><span class="num">${hasReceipt}</span> har verifikat men är inte
-      skickade · <span class="num">${sent}</span> skickade ·
-      <span class="num">${rows.length - requiring.length}</span> dolda</span>`;
+  el("buckets").innerHTML = BUCKETS.map((bucket) => {
+    const count = counts[bucket.status] || 0;
+    const on = active.has(bucket.status);
+    return `<label class="bucket ${bucket.status}${on ? " on" : ""}${count ? "" : " zero"}">
+      <input type="checkbox" data-bucket="${bucket.status}"${on ? " checked" : ""}>
+      <span class="count">${count}</span>
+      <span class="label">${escapeHtml(bucket.label)}</span>
+    </label>`;
+  }).join("");
 }
 
-function describePeriod(rows) {
-  if (!rows.length) return "";
-  const months = new Set(rows.map((row) => row.date.slice(0, 7)));
-  if (months.size === 1) return ` i ${monthLabel(rows[0].date.slice(0, 7))}`;
-  return "";
-}
+el("buckets").addEventListener("change", render);
 
 function renderMonth(key, allRows) {
   const section = document.createElement("section");
@@ -1408,16 +1418,17 @@ function renderPreview(preview) {
 
 /* ---------- filter-lyssnare ---------- */
 
-for (const id of ["filter-text", "filter-status", "filter-source", "filter-from", "filter-to", "sort"]) {
+for (const id of ["filter-text", "filter-source", "filter-from", "filter-to", "sort"]) {
   el(id).addEventListener("input", render);
   el(id).addEventListener("change", render);
 }
 
 el("filter-reset").addEventListener("click", (event) => {
   event.preventDefault();
-  for (const id of ["filter-text", "filter-status", "filter-source", "filter-from", "filter-to"]) {
+  for (const id of ["filter-text", "filter-source", "filter-from", "filter-to"]) {
     el(id).value = "";
   }
+  for (const box of document.querySelectorAll("input[data-bucket]")) box.checked = false;
   el("sort").value = "date-desc";
   render();
 });

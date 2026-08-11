@@ -108,17 +108,8 @@
   </main>
 
   <main id="view-list">
-    <section id="summary" class="summary" hidden></section>
-
     <section class="filters">
       <input type="search" id="filter-text" placeholder="Sök i text, källa eller anteckning">
-      <select id="filter-status">
-        <option value="">Alla statusar</option>
-        <option value="missing">Saknar verifikat</option>
-        <option value="has_receipt">Har verifikat</option>
-        <option value="sent">Skickat</option>
-        <option value="not_required">Inget krav</option>
-      </select>
       <select id="filter-source">
         <option value="">Alla källor</option>
       </select>
@@ -132,6 +123,8 @@
       </select>
       <button id="filter-reset" class="link">Nollställ</button>
     </section>
+
+    <section id="buckets" class="buckets" aria-label="Filtrera på status"></section>
 
     <section id="bulk" class="bulk" hidden>
       <span id="bulk-count"></span>

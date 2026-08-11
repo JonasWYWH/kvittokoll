@@ -108,7 +108,7 @@ body {
 
    Reglen sitter på .num och td.amount, inte på td.date — datumcellen bär
    numera även källpillen, och den är text. */
-.num, td.amount, .summary .count, .preview-summary b {
+.num, td.amount, .preview-summary b {
   font-family: var(--font-num);
   font-size: 0.93em;
   font-variant-numeric: tabular-nums;
@@ -178,22 +178,6 @@ input, select, textarea {
   color: var(--ink);
 }
 
-.summary {
-  margin: 20px 0 12px;
-  padding: 14px 16px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 28px;
-  align-items: baseline;
-}
-
-.summary .headline { font-size: 16px; }
-.summary .count { font-variant-numeric: tabular-nums; font-weight: 600; }
-.summary .count.missing { color: var(--missing); }
-
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -206,6 +190,43 @@ input, select, textarea {
 .field { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
 .field.block { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 12px; gap: 4px; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+
+/* Statushinkar: räknare och filter i ett. Flera kan kombineras — "saknar
+   verifikat" plus "har verifikat men inte skickat" är en vanlig arbetslista. */
+.buckets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+
+.bucket {
+  display: inline-flex;
+  /* Centrerat, inte baseline: en kryssruta saknar egen baslinje och får en
+     syntetiserad som skjuter ut hela hinkens höjd. */
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+}
+
+.bucket:hover { border-color: var(--muted); }
+.bucket input { margin: 0; }
+.bucket .count { font-family: var(--font-num); font-size: 13px; font-weight: 600; }
+/* Inte .empty — den klassen bär redan tomma-listan-meddelandets
+   padding, och kollisionen sprängde hinkarnas höjd. */
+.bucket.zero { opacity: 0.5; }
+.bucket.on { border-color: currentColor; }
+
+.bucket.missing { color: var(--missing); }
+.bucket.has_receipt { color: var(--has-receipt); }
+.bucket.sent { color: var(--sent); }
+.bucket.not_required { color: var(--muted); }
+.bucket.on.missing { background: var(--missing-bg); }
+.bucket.on.has_receipt { background: var(--has-receipt-bg); }
+.bucket.on.sent { background: var(--sent-bg); }
+.bucket.on.not_required { background: var(--neutral-bg); }
+.bucket .label { color: var(--ink); }
 
 .bulk {
   display: flex;

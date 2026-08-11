@@ -42,6 +42,11 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 
 Adresser, mallar och sökvägar finns under **Inställningar**.
 
+Statushinkarna under filterraden är räknare och filter i ett: *119 Saknar
+verifikat*, *10 Har verifikat*, *0 Skickat*, *0 Dolda*. Kryssa i en eller flera
+för att begränsa listan — ingen ikryssad betyder allt. Siffrorna räknas på de
+rader som klarar övriga filter, så de visar vad ett klick faktiskt skulle ge.
+
 Varje rad visar sin källa som en pill under datumet. Saknas källa står det
 **Koppla källa** där istället — aldrig båda, så raden håller sig smal.
 Verifikatkolumnen fungerar likadant: **Ladda upp** när verifikatet saknas,
