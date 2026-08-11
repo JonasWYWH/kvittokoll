@@ -253,9 +253,15 @@ som en enda PDF. Välj eller dra flera filer på en gång — de läggs till, in
 skrivs över.
 
 Finns redan verifikat visas de i stället för uppladdningsrutan: en flik per fil
-och den valda renderad i fönstret. **Lägg till fler filer** fäller ut
-uppladdningen igen, och **Ta bort den visade** tar bort just den filen. Filer
-raderas aldrig, de flyttas till `data/trash/`.
+och den valda renderad i fönstret. **Lägg till fler filer** är den primära
+åtgärden och fäller ut uppladdningen igen. Under förhandsvisningen står filens
+namn med *Öppna i ny flik* och *Ta bort fil N* bredvid — åtgärderna sitter hos
+filen de gäller. Filer raderas aldrig, de flyttas till `data/trash/`.
+
+Flikarna visar bara den del av namnet som skiljer filerna åt. Underlag från
+samma leverantör delar nästan hela namnet — `Bg5547-4688_Detalj_Ref20336_…`
+mot `Bg5547-4688_Detalj_Ref_…` — och vilken ände man än klipper ser de likadana
+ut. Kan ingen del skilja dem gäller ordningstalet.
 
 Filerna delar namnstomme och skiljs åt av krocksuffixet:
 `2026-03-14_449-00_google-workspace.pdf`, `…-2.pdf`, `…-3.pdf`.

@@ -764,30 +764,68 @@ function receiptUrl(row, filename) {
     encodeURIComponent(filename)}/file`;
 }
 
+function middleEllipsis(text, max) {
+  if (text.length <= max) return text;
+  const head = Math.ceil((max - 1) / 2);
+  const tail = Math.floor((max - 1) / 2);
+  return `${text.slice(0, head)}…${text.slice(text.length - tail)}`;
+}
+
+/* Filer från samma leverantör delar nästan hela namnet —
+   "Bg5547-4688_Detalj_Ref20336_20260702.pdf" mot
+   "Bg5547-4688_Detalj_Ref_20260702.pdf". Vilken ände man än klipper ser de
+   likadana ut. Fliken visar därför bara den del som faktiskt skiljer dem,
+   räknat från den gemensamma inledningen. */
+function distinctiveLabels(names) {
+  if (names.length < 2) return names.slice();
+  const shortest = Math.min(...names.map((n) => n.length));
+  let common = 0;
+  while (common < shortest && names.every((n) => n[common] === names[0][common])) common++;
+  // Backa till närmaste avgränsare så etiketten inte börjar mitt i ett ord.
+  const boundary = Math.max(
+    names[0].lastIndexOf("_", common),
+    names[0].lastIndexOf("-", common),
+    names[0].lastIndexOf(".", common)
+  );
+  if (boundary > 0) common = boundary + 1;
+  const cut = names.map((n) => n.slice(common));
+  // Tomma eller inbördes lika etiketter skiljer ingenting — då får hela
+  // namnet stå kvar och ordningstalet göra jobbet.
+  const duger = cut.every((label) => label) && new Set(cut).size === cut.length;
+  return duger ? cut : names.slice();
+}
+
 function renderReceiptFiles(row) {
   const files = row.receipts || [];
   if (!files.length) {
     el("receipt-tabs").innerHTML = "";
     el("receipt-preview").innerHTML = "";
-    el("receipt-current-info").innerHTML = "";
+    el("receipt-filename").textContent = "";
+    el("receipt-meta").textContent = "";
     return;
   }
-  const shown = files.find((r) => r.stored_filename === state.receiptShown) || files[0];
+  const index = Math.max(0, files.findIndex((r) => r.stored_filename === state.receiptShown));
+  const shown = files[index];
   state.receiptShown = shown.stored_filename;
 
   // Flikar bara när det finns något att välja mellan.
+  const labels = distinctiveLabels(files.map((r) => r.original_filename));
   el("receipt-tabs").innerHTML = files.length > 1
-    ? files.map((r) => `<button class="receipt-tab${
+    ? files.map((r, i) => `<button class="receipt-tab${
         r.stored_filename === shown.stored_filename ? " on" : ""}"
-        data-file="${escapeHtml(r.stored_filename)}">${escapeHtml(r.stored_filename)}</button>`).join("")
+        data-file="${escapeHtml(r.stored_filename)}"
+        title="${escapeHtml(r.original_filename)}"
+        ><span class="ordinal num">${i + 1}</span>${
+          escapeHtml(middleEllipsis(labels[i], 26))}</button>`).join("")
     : "";
 
   el("receipt-preview").innerHTML = previewFor(shown.stored_filename, receiptUrl(row, shown.stored_filename));
-  el("receipt-current-info").innerHTML =
-    `<span class="num">${escapeHtml(shown.stored_filename)}</span>
-     <br><span class="muted">Originalnamn: ${escapeHtml(shown.original_filename)} ·
-     uppladdat ${escapeHtml(shown.uploaded_at.slice(0, 16).replace("T", " "))}${
-       files.length > 1 ? ` · ${files.length} filer på raden` : ""}</span>`;
+  el("receipt-filename").textContent = shown.stored_filename;
+  el("receipt-meta").textContent =
+    `Originalnamn: ${shown.original_filename} · uppladdat ${
+      shown.uploaded_at.slice(0, 16).replace("T", " ")}${
+      files.length > 1 ? ` · fil ${index + 1} av ${files.length}` : ""}`;
+  el("receipt-remove").textContent = files.length > 1 ? `Ta bort fil ${index + 1}` : "Ta bort filen";
 }
 
 el("receipt-tabs").addEventListener("click", (event) => {
@@ -800,6 +838,7 @@ el("receipt-tabs").addEventListener("click", (event) => {
 
 el("receipt-add-more").addEventListener("click", (event) => {
   event.preventDefault();
+  el("receipt-fetch").hidden = false;
   el("receipt-upload-step").hidden = false;
   el("receipt-upload").hidden = false;
   el("receipt-add-more").hidden = true;

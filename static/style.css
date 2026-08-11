@@ -553,12 +553,29 @@ button.danger { color: var(--missing); }
 .dropzone input { border: none; background: none; padding: 0; }
 .dropzone p { margin: 8px 0 0; }
 
-#receipt-current p { margin: 8px 0 0; }
+/* Åtgärderna står bredvid filen de gäller, inte i foten. "Ta bort den
+   visade" krävde att man höll reda på vilken flik som var vald. */
+.file-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.file-names { min-width: 0; font-size: 13px; }
+.file-names > span { display: block; overflow-wrap: anywhere; }
+.file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+button.tiny.danger { color: var(--missing); border-color: var(--line); }
+button.tiny.danger:hover { border-color: var(--missing); }
 
 .receipt-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 
 .receipt-tab {
-  padding: 4px 11px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel);
@@ -566,11 +583,10 @@ button.danger { color: var(--missing); }
   font-size: 12px;
   font-family: var(--font-num);
   cursor: pointer;
-  max-width: 30ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.receipt-tab .ordinal { font-weight: 600; }
 
 .receipt-tab.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 

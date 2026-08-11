@@ -248,16 +248,23 @@
       <div id="receipt-current" hidden>
         <div id="receipt-tabs" class="receipt-tabs"></div>
         <div id="receipt-preview" class="receipt-preview"></div>
-        <p id="receipt-current-info" class="small"></p>
-        <p><button class="tiny" id="receipt-add-more">Lägg till fler filer</button></p>
+        <div class="file-bar">
+          <div class="file-names">
+            <span id="receipt-filename" class="num"></span>
+            <span id="receipt-meta" class="muted"></span>
+          </div>
+          <div class="file-actions">
+            <button class="tiny" id="receipt-open">Öppna i ny flik ↗</button>
+            <button class="tiny danger" id="receipt-remove">Ta bort filen</button>
+          </div>
+        </div>
       </div>
 
       <p id="receipt-error" class="error" hidden></p>
 
       <menu class="dialog-actions">
-        <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort den visade</button>
         <button value="default" id="receipt-upload" class="primary">Ladda upp</button>
-        <button value="default" id="receipt-open" class="primary" hidden>Öppna i ny flik ↗</button>
+        <button value="default" id="receipt-add-more" class="primary" hidden>Lägg till fler filer</button>
       </menu>
     </form>
   </dialog>
