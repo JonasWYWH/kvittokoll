@@ -399,7 +399,23 @@ dialog {
 }
 
 dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
-.dialog-body { padding: 22px 24px; }
+.dialog-body { padding: 22px 24px; position: relative; }
+
+/* Stäng i hörnet: samma plats i alla rutor, och nåbar utan att leta i foten
+   när innehållet är högt. */
+.dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  padding: 4px 10px;
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dialog-close:hover { border-color: var(--line); background: var(--panel); color: var(--ink); }
+.dialog-body h2 { padding-right: 96px; }
 .dialog-body h2 { margin: 0 0 8px; font-size: 17px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 20px 0 0; padding: 0; }
 

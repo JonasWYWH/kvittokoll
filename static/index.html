@@ -139,6 +139,7 @@
 
   <dialog id="import-dialog">
     <form method="dialog" class="dialog-body">
+      <button value="cancel" class="dialog-close" aria-label="Stäng">Stäng <span aria-hidden="true">✕</span></button>
       <h2>Importera transaktioner</h2>
       <p class="muted">
         Exportera från internetbanken som CSV eller camt.053-XML. Importen lägger
@@ -177,6 +178,7 @@
 
   <dialog id="send-dialog">
     <form method="dialog" class="dialog-body">
+      <button value="cancel" class="dialog-close" aria-label="Stäng">Stäng <span aria-hidden="true">✕</span></button>
       <h2>Skicka verifikat</h2>
       <p class="muted" id="send-context"></p>
 
@@ -205,7 +207,6 @@
       <p id="send-error" class="error" hidden></p>
 
       <menu class="dialog-actions">
-        <button value="cancel" class="link">Stäng</button>
         <button value="default" id="send-unmark" class="link danger" hidden>Ångra skickat</button>
         <button value="default" id="send-mark" class="primary" hidden>Markera som skickad</button>
         <button value="default" id="send-create" class="primary">Skapa och öppna mejl</button>
@@ -216,6 +217,7 @@
   <dialog id="receipt-dialog">
     <p id="receipt-hint" class="picker-hint" hidden></p>
     <form method="dialog" class="dialog-body">
+      <button value="cancel" class="dialog-close" aria-label="Stäng">Stäng <span aria-hidden="true">✕</span></button>
       <h2>Verifikat</h2>
       <p class="muted" id="receipt-context"></p>
 
@@ -253,7 +255,6 @@
       <p id="receipt-error" class="error" hidden></p>
 
       <menu class="dialog-actions">
-        <button value="cancel" class="link">Stäng</button>
         <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort den visade</button>
         <button value="default" id="receipt-upload" class="primary">Ladda upp</button>
         <button value="default" id="receipt-open" class="primary" hidden>Öppna i ny flik ↗</button>
@@ -263,6 +264,7 @@
 
   <dialog id="source-dialog">
     <form method="dialog" class="dialog-body">
+      <button value="cancel" class="dialog-close" aria-label="Stäng">Stäng <span aria-hidden="true">✕</span></button>
       <h2>Koppla källa</h2>
       <p class="muted" id="source-context"></p>
       <label class="field block">

@@ -1394,15 +1394,17 @@ el("import-open").addEventListener("click", () => {
   el("import-dialog").showModal();
 });
 
-el("import-cancel").addEventListener("click", () => {
-  if (state.staged) {
-    request("/api/import/cancel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: state.staged.token }),
-    }).catch(() => {});
-    state.staged = null;
-  }
+/* Läggs på close, inte på Avbryt-knappen: krysset i hörnet och Esc stänger
+   också rutan, och en obekräftad förhandsgranskning ska aldrig bli kvar i
+   serverns minne. */
+el("import-dialog").addEventListener("close", () => {
+  if (!state.staged) return;
+  request("/api/import/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: state.staged.token }),
+  }).catch(() => {});
+  state.staged = null;
 });
 
 el("import-preview").addEventListener("click", async (event) => {
