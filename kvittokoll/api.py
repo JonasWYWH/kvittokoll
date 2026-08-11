@@ -149,6 +149,8 @@ class Api:
             transaction.ambiguous_sources = []
             transaction.source_manual = source_id is not None
             source_changed = True
+            if source_id and "requires_receipt" not in changes:
+                self._inherit_receipt_rule(transaction, source_id)
 
         transaction.refresh_status()
 
@@ -409,9 +411,16 @@ class Api:
             if receipt_type not in (RECEIPT_TYPE_DIGITAL, RECEIPT_TYPE_PHYSICAL):
                 raise ApiError("Okänd verifikattyp: {}".format(receipt_type))
             source.receipt_type = receipt_type
-        for flag in ("requires_receipt", "auto_send_configured"):
-            if flag in data:
-                setattr(source, flag, bool(data[flag]))
+        # Ändras verifikatkravet slår det igenom på källans rader. En källa
+        # som moms eller skatt ska kunna slås av en gång, inte rad för rad.
+        # Bara vid faktisk ändring — annars skulle varje sparning av något
+        # annat fält nollställa manuella val på enskilda rader.
+        applied = 0
+        if "requires_receipt" in data and bool(data["requires_receipt"]) != source.requires_receipt:
+            source.requires_receipt = bool(data["requires_receipt"])
+            applied = self._apply_receipt_rule(source)
+        if "auto_send_configured" in data:
+            source.auto_send_configured = bool(data["auto_send_configured"])
         if "filename_tag" in data:
             source.filename_tag = slugify(data["filename_tag"]) or slugify(source.name)
         if "match_patterns" in data:
@@ -419,7 +428,25 @@ class Api:
 
         self.store.save_sources()
         coupled = self._rematch()
-        return {"source": self._source_payload(source), "coupled": coupled}
+        return {
+            "source": self._source_payload(source),
+            "coupled": coupled,
+            "applied": applied,
+        }
+
+    def _apply_receipt_rule(self, source) -> int:
+        """Sätt källans verifikatkrav på alla rader som är kopplade till den."""
+        changed = 0
+        for transaction in self.store.transactions():
+            if transaction.source_id == source.id and (
+                transaction.requires_receipt != source.requires_receipt
+            ):
+                transaction.requires_receipt = source.requires_receipt
+                transaction.refresh_status()
+                changed += 1
+        if changed:
+            self.store.save_transactions()
+        return changed
 
     def delete_source(self, source_id: str) -> Dict[str, Any]:
         """Ta bort en källa och koppla loss raderna som pekade på den.
@@ -482,6 +509,7 @@ class Api:
             if source_id and source_id != transaction.source_id:
                 transaction.source_id = source_id
                 transaction.ambiguous_sources = []
+                self._inherit_receipt_rule(transaction, source_id)
                 changed += 1
             elif not source_id and not transaction.source_id:
                 # En koppling tas aldrig bort av matchningen. Att en regel
@@ -492,6 +520,13 @@ class Api:
         if changed:
             self.store.save_transactions()
         return changed
+
+    def _inherit_receipt_rule(self, transaction: Transaction, source_id: str) -> None:
+        """Kopplas en rad till en källa gäller källans verifikatkrav (§5.3.1)."""
+        source = self.store.source_by_id(source_id)
+        if source is not None:
+            transaction.requires_receipt = source.requires_receipt
+            transaction.refresh_status()
 
     def rematch_sources(self) -> Dict[str, Any]:
         changed = self._rematch()

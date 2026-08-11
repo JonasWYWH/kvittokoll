@@ -281,7 +281,12 @@ td.amount.negative { color: var(--missing); }
 td.date { white-space: nowrap; font-variant-numeric: tabular-nums; }
 td.select { width: 28px; }
 
-tr.not-required td.text, tr.not-required td.amount { opacity: 0.55; }
+/* Rader utan verifikatkrav ska läsas som avstängda — ljus bakgrund och
+   dämpad text — men ögat behåller sin färg så det syns att raden går att
+   ta tillbaka. */
+tr.not-required td { background: var(--neutral-bg); color: var(--muted); }
+tr.not-required td.amount, tr.not-required td.amount.negative { color: var(--muted); }
+tr.not-required .cell-meta, tr.not-required .pill { opacity: 0.75; }
 
 .badge {
   display: inline-block;

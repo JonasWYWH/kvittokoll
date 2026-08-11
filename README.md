@@ -118,6 +118,18 @@ inte ett bolag. Google Workspace och Google Cloud är två källor med olika
 portaler och olika fakturor, trots att banktexten är snarlik. Bolaget finns med
 som fält för gruppering, men styr ingenting.
 
+### Källor som inte kräver verifikat
+
+Moms, skatt, löner och överföringar mellan egna konton behöver inget underlag —
+kontoutdraget är underlaget. Stäng av **Kräver verifikat** på källan, så döljs
+alla dess rader ur arbetslistan, får en grå *Inget krav*-markering och räknas
+inte som saknade.
+
+Ändringen gäller källans alla rader, inte bara nya. Rader som kopplas till
+källan senare ärver kravet. Att spara källan utan att röra kryssrutan ändrar
+ingenting — annars hade varje redigering nollställt val du gjort på enskilda
+rader.
+
 ### Matchningsmönster
 
 Varje mönster har ett läge:

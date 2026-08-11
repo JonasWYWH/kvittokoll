@@ -519,7 +519,9 @@ function renderSourceCard(source) {
         <p class="muted small">${escapeHtml(source.company) || "—"} ·
           <span class="num">${source.transaction_count}</span> kopplade transaktioner ·
           ${source.receipt_type === "physical" ? "fotas/scannas" : "digitalt"} ·
-          ${source.requires_receipt ? "kräver verifikat" : "kräver inget verifikat"}
+          ${source.requires_receipt
+            ? "kräver verifikat"
+            : '<span class="badge not_required">kräver inget verifikat</span>'}
           ${source.auto_send_configured ? " · mejlas automatiskt" : ""}</p>
       </div>
       <div class="actions">
@@ -570,10 +572,14 @@ function renderSourceEditor(source) {
       <textarea data-field="note" rows="2">${escapeHtml(source.note)}</textarea></label>
     <div class="toggles">
       <label class="toggle"><input type="checkbox" data-field="requires_receipt"
-        ${source.requires_receipt ? "checked" : ""}> Nya rader kräver verifikat</label>
+        ${source.requires_receipt ? "checked" : ""}> Kräver verifikat</label>
       <label class="toggle"><input type="checkbox" data-field="auto_send_configured"
         ${source.auto_send_configured ? "checked" : ""}> Leverantören mejlar redan till bokföringen</label>
     </div>
+
+    <p class="hint">Stängs verifikatkravet av döljs källans rader ur arbetslistan och
+      räknas inte som saknade. Bra för moms, skatt, löner och överföringar mellan egna
+      konton. Ändringen gäller alla rader som är kopplade till källan.</p>
 
     <h4>Matchningsmönster</h4>
     <div class="pattern-editor">
@@ -628,9 +634,10 @@ el("sources-list").addEventListener("click", async (event) => {
       state.editingSource = null;
       await load();
       showView("sources");
-      message(result.coupled
-        ? `Källan sparad. ${result.coupled} rader kopplades till den.`
-        : "Källan sparad. Inga nya rader matchade.");
+      const delar = [];
+      if (result.coupled) delar.push(`${result.coupled} rader kopplades till den`);
+      if (result.applied) delar.push(`${result.applied} rader fick källans verifikatkrav`);
+      message(delar.length ? `Källan sparad. ${delar.join(", ")}.` : "Källan sparad.");
     } catch (error) {
       const box = card.querySelector("[data-source-error]");
       box.hidden = false;

@@ -265,6 +265,76 @@ class ApiTest(unittest.TestCase):
         source = [s for s in self.api.state()["sources"] if s["id"] == "google-workspace"][0]
         self.assertEqual(source["transaction_count"], 1)
 
+    # -- verifikatkrav från källan ----------------------------------------
+
+    def test_kallans_krav_slar_igenom_pa_kopplade_rader(self):
+        """Moms, skatt och löner ska kunna slås av en gång — inte rad för rad."""
+        created = self.api.create_source(
+            {"name": "Moms", "match_patterns": [{"pattern": "ANTHROPIC", "mode": "starts_with"}]}
+        )["source"]
+        rader = [r for r in self.api.transactions()["transactions"]
+                 if r["source_id"] == created["id"]]
+        self.assertGreater(len(rader), 1)
+        self.assertTrue(all(r["requires_receipt"] for r in rader))
+
+        result = self.api.update_source(created["id"], {"requires_receipt": False})
+        self.assertEqual(result["applied"], len(rader))
+        for row in self.api.transactions()["transactions"]:
+            if row["source_id"] == created["id"]:
+                self.assertFalse(row["requires_receipt"])
+                self.assertEqual(row["status"], "not_required")
+
+    def test_krav_pa_igen_tar_tillbaka_raderna(self):
+        created = self.api.create_source(
+            {"name": "Moms", "match_patterns": [{"pattern": "ANTHROPIC", "mode": "starts_with"}]}
+        )["source"]
+        self.api.update_source(created["id"], {"requires_receipt": False})
+        result = self.api.update_source(created["id"], {"requires_receipt": True})
+        self.assertGreater(result["applied"], 0)
+        for row in self.api.transactions()["transactions"]:
+            if row["source_id"] == created["id"]:
+                self.assertEqual(row["status"], "missing")
+
+    def test_oforandrat_krav_ror_inga_rader(self):
+        """Att spara ett annat fält får inte nollställa manuella val."""
+        created = self.api.create_source(
+            {"name": "Moms", "match_patterns": [{"pattern": "ANTHROPIC", "mode": "starts_with"}]}
+        )["source"]
+        rad = [r for r in self.api.transactions()["transactions"]
+               if r["source_id"] == created["id"]][0]
+        self.api.update_transaction(rad["id"], {"requires_receipt": False})
+
+        result = self.api.update_source(created["id"], {"company": "Skatteverket"})
+        self.assertEqual(result["applied"], 0)
+        kvar = [r for r in self.api.transactions()["transactions"] if r["id"] == rad["id"]][0]
+        self.assertFalse(kvar["requires_receipt"])
+
+    def test_nykopplad_rad_arver_kallans_krav(self):
+        created = self.api.create_source({"name": "Moms", "requires_receipt": False})["source"]
+        self.api.update_source(
+            created["id"], {"match_patterns": [{"pattern": "ANTHROPIC", "mode": "starts_with"}]}
+        )
+        rader = [r for r in self.api.transactions()["transactions"]
+                 if r["source_id"] == created["id"]]
+        self.assertGreater(len(rader), 0)
+        self.assertTrue(all(r["status"] == "not_required" for r in rader))
+
+    def test_manuell_koppling_arver_ocksa(self):
+        created = self.api.create_source({"name": "Moms", "requires_receipt": False})["source"]
+        rad = self.transaction("Utdelning")
+        self.assertTrue(rad["requires_receipt"])
+        result = self.api.update_transaction(rad["id"], {"source_id": created["id"]})
+        self.assertFalse(result["transaction"]["requires_receipt"])
+        self.assertEqual(result["transaction"]["status"], "not_required")
+
+    def test_uttryckligt_krav_i_samma_anrop_vinner_over_arvet(self):
+        created = self.api.create_source({"name": "Moms", "requires_receipt": False})["source"]
+        rad = self.transaction("Utdelning")
+        result = self.api.update_transaction(
+            rad["id"], {"source_id": created["id"], "requires_receipt": True}
+        )
+        self.assertTrue(result["transaction"]["requires_receipt"])
+
     # -- ta bort källor ---------------------------------------------------
 
     def test_borttagning_kopplar_loss_men_raderar_inga_rader(self):
