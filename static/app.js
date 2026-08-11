@@ -16,6 +16,8 @@ const state = {
   staged: null,
   sourceTarget: null,
   view: "list",
+  receiptTarget: null,
+  flashTimer: null,
   editingSource: null,
   sourceDraft: {},
 };
@@ -277,13 +279,19 @@ function renderRow(row) {
       }</span>
     </td>
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
-    <td><span class="badge ${row.status}">${STATUS_LABEL[row.status]}</span></td>
+    <td>
+      ${row.receipt
+        ? `<a class="badge ${row.status}" href="/api/transactions/${encodeURIComponent(row.id)}/receipt/file"
+             target="_blank" rel="noopener"
+             title="${escapeHtml(row.receipt.stored_filename)}">${STATUS_LABEL[row.status]} ↗</a>`
+        : `<span class="badge ${row.status}">${STATUS_LABEL[row.status]}</span>`}
+    </td>
     <td class="date">${row.sent_at ? `<span class="num">${row.sent_at.slice(0, 10)}</span>` : "—"}</td>
     <td class="actions">
-      ${source && source.receipt_url
-        ? `<a class="tiny button-like" href="${escapeHtml(source.receipt_url)}"
-             target="_blank" rel="noopener"
-             title="${escapeHtml(source.note || "")}">Hämta ↗</a>`
+      ${row.requires_receipt
+        ? `<button class="tiny" data-action="receipt">${
+            row.receipt ? "Verifikat" : "Ladda upp"
+          }</button>`
         : ""}
       <button class="tiny" data-action="toggle-required">${
         row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
@@ -358,6 +366,8 @@ el("list").addEventListener("click", async (event) => {
       render();
     } else if (button.dataset.action === "source") {
       openSourceDialog(row);
+    } else if (button.dataset.action === "receipt") {
+      openReceiptDialog(row);
     }
   } catch (error) {
     window.alert(error.message);
@@ -642,6 +652,170 @@ el("source-rematch").addEventListener("click", async () => {
         ? `${result.changed} rader kopplades till en källa.`
         : "Inga okopplade rader matchade någon källa."
     );
+  } catch (error) {
+    window.alert(error.message);
+  }
+});
+
+/* ---------- verifikat ---------- */
+
+function openReceiptDialog(row) {
+  state.receiptTarget = row;
+  const source = sourceById(row.source_id);
+
+  el("receipt-context").innerHTML =
+    `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
+    ` · ${escapeHtml(row.description)}`;
+
+  // Länken är en genväg till leverantörens sida, inget verktyget kan hämta åt
+  // dig — inloggningen ligger hos dem.
+  el("receipt-link-row").innerHTML = source && source.receipt_url
+    ? `<a class="button-like" href="${escapeHtml(source.receipt_url)}" target="_blank"
+         rel="noopener">Öppna ${escapeHtml(source.name)} ↗</a>`
+    : source
+      ? `<span class="muted small">${escapeHtml(source.name)} har ingen länk sparad —
+           lägg till den under Källor så slipper du leta nästa gång.</span>`
+      : `<span class="muted small">Ingen källa kopplad. Kopplar du en källa med
+           länk hamnar genvägen hit.</span>`;
+  el("receipt-note").textContent = source && source.note ? source.note : "";
+
+  const current = el("receipt-current");
+  current.hidden = !row.receipt;
+  if (row.receipt) {
+    el("receipt-current-info").innerHTML =
+      `<a href="/api/transactions/${encodeURIComponent(row.id)}/receipt/file" target="_blank"
+          rel="noopener">${escapeHtml(row.receipt.stored_filename)} ↗</a>
+       <br><span class="muted">Originalnamn: ${escapeHtml(row.receipt.original_filename)} ·
+       uppladdat ${escapeHtml(row.receipt.uploaded_at.slice(0, 16).replace("T", " "))}</span>`;
+  }
+  el("receipt-remove").hidden = !row.receipt;
+  el("receipt-upload").textContent = row.receipt ? "Ersätt verifikat" : "Ladda upp";
+
+  el("receipt-file").value = "";
+  el("receipt-name").textContent = "";
+  el("receipt-error").hidden = true;
+  el("receipt-dialog").showModal();
+}
+
+async function uploadReceipt(row, file) {
+  const form = new FormData();
+  form.append("file", file);
+  const result = await request(
+    `/api/transactions/${encodeURIComponent(row.id)}/receipt`,
+    { method: "POST", body: form }
+  );
+  const index = state.transactions.findIndex((item) => item.id === row.id);
+  if (index >= 0) state.transactions[index] = result.transaction;
+  return result;
+}
+
+el("receipt-file").addEventListener("change", () => {
+  const file = el("receipt-file").files[0];
+  el("receipt-name").textContent = file ? `Vald fil: ${file.name}` : "";
+});
+
+el("receipt-upload").addEventListener("click", async (event) => {
+  event.preventDefault();
+  const row = state.receiptTarget;
+  const file = el("receipt-file").files[0];
+  if (!row) return;
+  if (!file) {
+    showReceiptError("Välj en fil först.");
+    return;
+  }
+  try {
+    const result = await uploadReceipt(row, file);
+    el("receipt-dialog").close();
+    render();
+    window.setTimeout(
+      () => flash(`Sparat som ${result.receipt.stored_filename}`), 0
+    );
+  } catch (error) {
+    showReceiptError(error.message);
+  }
+});
+
+el("receipt-remove").addEventListener("click", async (event) => {
+  event.preventDefault();
+  const row = state.receiptTarget;
+  if (!row) return;
+  if (!window.confirm("Ta bort verifikatet? Filen flyttas till papperskorgen.")) return;
+  try {
+    const result = await request(
+      `/api/transactions/${encodeURIComponent(row.id)}/receipt`,
+      { method: "DELETE" }
+    );
+    const index = state.transactions.findIndex((item) => item.id === row.id);
+    if (index >= 0) state.transactions[index] = result.transaction;
+    el("receipt-dialog").close();
+    render();
+  } catch (error) {
+    showReceiptError(error.message);
+  }
+});
+
+function showReceiptError(text) {
+  el("receipt-error").hidden = false;
+  el("receipt-error").textContent = text;
+}
+
+function flash(text) {
+  const box = el("flash");
+  box.textContent = text;
+  box.hidden = false;
+  clearTimeout(state.flashTimer);
+  state.flashTimer = setTimeout(() => { box.hidden = true; }, 5000);
+}
+
+/* Drag-and-drop, både i modalen och direkt på raden (§7.1). */
+function fileFrom(event) {
+  const items = event.dataTransfer && event.dataTransfer.files;
+  return items && items.length ? items[0] : null;
+}
+
+const dropzone = el("dropzone");
+dropzone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  dropzone.classList.add("over");
+});
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("over"));
+dropzone.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  dropzone.classList.remove("over");
+  const file = fileFrom(event);
+  if (!file || !state.receiptTarget) return;
+  try {
+    const result = await uploadReceipt(state.receiptTarget, file);
+    el("receipt-dialog").close();
+    render();
+    flash(`Sparat som ${result.receipt.stored_filename}`);
+  } catch (error) {
+    showReceiptError(error.message);
+  }
+});
+
+el("list").addEventListener("dragover", (event) => {
+  const tr = event.target.closest("tr[data-id]");
+  if (!tr) return;
+  event.preventDefault();
+  tr.classList.add("drop-target");
+});
+el("list").addEventListener("dragleave", (event) => {
+  const tr = event.target.closest("tr[data-id]");
+  if (tr) tr.classList.remove("drop-target");
+});
+el("list").addEventListener("drop", async (event) => {
+  const tr = event.target.closest("tr[data-id]");
+  if (!tr) return;
+  event.preventDefault();
+  tr.classList.remove("drop-target");
+  const file = fileFrom(event);
+  const row = state.transactions.find((item) => item.id === tr.dataset.id);
+  if (!file || !row) return;
+  try {
+    const result = await uploadReceipt(row, file);
+    render();
+    flash(`Sparat som ${result.receipt.stored_filename}`);
   } catch (error) {
     window.alert(error.message);
   }

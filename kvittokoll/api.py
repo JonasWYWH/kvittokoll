@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from . import importer
+from . import importer, receipts
 from .importers import ImportError_
 from .importers.profiles import load_profiles
 from .models import (
@@ -183,6 +183,44 @@ class Api:
         if updated:
             self.store.save_transactions()
         return {"updated": updated}
+
+    # -- verifikat --------------------------------------------------------
+
+    def upload_receipt(self, transaction_id: str, filename: str, data: bytes) -> Dict[str, Any]:
+        transaction = self.store.transaction_by_id(transaction_id)
+        if transaction is None:
+            raise ApiError("Transaktionen finns inte.", status=404)
+        if transaction.receipt is not None:
+            # Ett verifikat per rad i version 1 (§7.3). Det gamla flyttas till
+            # papperskorgen istället för att skrivas över.
+            receipts.remove_receipt(self.store, transaction)
+        try:
+            receipt = receipts.store_receipt(self.store, transaction, filename, data)
+        except receipts.ReceiptError as error:
+            raise ApiError(str(error))
+        self.store.save_transactions()
+        return {"transaction": transaction.to_dict(), "receipt": receipt.to_dict()}
+
+    def delete_receipt(self, transaction_id: str) -> Dict[str, Any]:
+        transaction = self.store.transaction_by_id(transaction_id)
+        if transaction is None:
+            raise ApiError("Transaktionen finns inte.", status=404)
+        if transaction.receipt is None:
+            raise ApiError("Raden har inget verifikat.")
+        moved = receipts.remove_receipt(self.store, transaction)
+        self.store.save_transactions()
+        return {"transaction": transaction.to_dict(), "trashed": str(moved) if moved else None}
+
+    def receipt_file(self, transaction_id: str) -> Tuple[bytes, str, str]:
+        """Returnerar ``(innehåll, mimetyp, filnamn)`` för visning i webbläsaren."""
+        transaction = self.store.transaction_by_id(transaction_id)
+        if transaction is None:
+            raise ApiError("Transaktionen finns inte.", status=404)
+        try:
+            path, mimetype = receipts.receipt_file(self.store, transaction)
+        except receipts.ReceiptError as error:
+            raise ApiError(str(error), status=404)
+        return path.read_bytes(), mimetype, transaction.receipt.stored_filename
 
     # -- källor -----------------------------------------------------------
 

@@ -402,3 +402,45 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .editor-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
 .editor-actions .spacer { flex: 1; }
 button.danger { color: var(--missing); }
+
+
+/* ---------- verifikat ---------- */
+
+.flash {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--sent-bg);
+  color: var(--sent);
+  border: 1px solid var(--sent);
+  border-radius: 8px;
+  font-size: 14px;
+  max-width: 46ch;
+}
+
+.fetch-step { margin: 14px 0; }
+.fetch-step p { margin: 4px 0; }
+
+.dropzone {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone input { border: none; background: none; padding: 0; }
+.dropzone p { margin: 8px 0 0; }
+
+#receipt-current h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); margin: 18px 0 4px; }
+#receipt-current p { margin: 0; }
+
+tr.drop-target td { background: var(--accent-soft); }
+
+a.badge { text-decoration: none; }
+a.badge:hover { text-decoration: underline; }

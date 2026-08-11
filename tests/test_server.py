@@ -43,14 +43,14 @@ class ServerTest(unittest.TestCase):
             {"Content-Type": "application/json"},
         )
 
-    def upload(self, filename, data, profile_id=None):
+    def multipart_body(self, filename, data, fields=None):
         boundary = "----kvittokoll{}".format(uuid.uuid4().hex)
         parts = []
-        if profile_id:
+        for name, value in (fields or {}).items():
             parts.append(
                 (
-                    "--{}\r\nContent-Disposition: form-data; name=\"profile_id\"\r\n\r\n"
-                    "{}\r\n".format(boundary, profile_id)
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n"
+                    "{}\r\n".format(boundary, name, value)
                 ).encode("utf-8")
             )
         parts.append(
@@ -63,12 +63,17 @@ class ServerTest(unittest.TestCase):
         )
         parts.append(data)
         parts.append("\r\n--{}--\r\n".format(boundary).encode("utf-8"))
-        return self.call(
-            "POST",
-            "/api/import/preview",
-            b"".join(parts),
-            {"Content-Type": "multipart/form-data; boundary={}".format(boundary)},
-        )
+        return b"".join(parts), {
+            "Content-Type": "multipart/form-data; boundary={}".format(boundary)
+        }
+
+    def multipart_post(self, path, filename, data, fields=None):
+        body, headers = self.multipart_body(filename, data, fields)
+        return self.call("POST", path, body, headers)
+
+    def upload(self, filename, data, profile_id=None):
+        fields = {"profile_id": profile_id} if profile_id else None
+        return self.multipart_post("/api/import/preview", filename, data, fields)
 
     # -- statiska filer ---------------------------------------------------
 
@@ -156,6 +161,54 @@ class ServerTest(unittest.TestCase):
 
         _, state = self.call("GET", "/api/state")
         self.assertEqual(state["sources"], [])
+
+    def test_verifikat_kan_laddas_upp_visas_och_tas_bort(self):
+        _, preview = self.upload("s.csv", fixture_bytes("swedbank_sample.csv"))
+        self.json_call("POST", "/api/import/commit", {"token": preview["token"]})
+        _, state = self.call("GET", "/api/state")
+        transaction_id = state["transactions"][0]["id"]
+        quoted = quote(transaction_id, safe="")
+
+        pdf = b"%PDF-1.4\ntrailer\n%%EOF\n"
+        status, result = self.multipart_post(
+            "/api/transactions/{}/receipt".format(quoted), "faktura.pdf", pdf
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(result["transaction"]["status"], "has_receipt")
+        self.assertEqual(result["receipt"]["original_filename"], "faktura.pdf")
+        self.assertTrue(result["receipt"]["stored_filename"].endswith(".pdf"))
+
+        # Filen ska gå att öppna i webbläsaren, med rätt MIME-typ.
+        request = Request(self.base + "/api/transactions/{}/receipt/file".format(quoted))
+        with urlopen(request, timeout=10) as response:
+            self.assertEqual(response.headers["Content-Type"], "application/pdf")
+            self.assertEqual(response.read(), pdf)
+
+        status, removed = self.call(
+            "DELETE", "/api/transactions/{}/receipt".format(quoted)
+        )
+        self.assertEqual(removed["transaction"]["status"], "missing")
+        self.assertIsNone(removed["transaction"]["receipt"])
+
+        with self.assertRaises(HTTPError) as caught:
+            self.call("GET", "/api/transactions/{}/receipt/file".format(quoted))
+        self.assertEqual(caught.exception.code, 404)
+
+    def test_inloggningssida_som_pdf_avvisas_over_http(self):
+        _, preview = self.upload("s.csv", fixture_bytes("swedbank_sample.csv"))
+        self.json_call("POST", "/api/import/commit", {"token": preview["token"]})
+        _, state = self.call("GET", "/api/state")
+        quoted = quote(state["transactions"][0]["id"], safe="")
+
+        with self.assertRaises(HTTPError) as caught:
+            self.multipart_post(
+                "/api/transactions/{}/receipt".format(quoted),
+                "faktura.pdf",
+                b"<!DOCTYPE html><html><body>Logga in</body></html>",
+            )
+        payload = json.loads(caught.exception.read().decode("utf-8"))
+        self.assertEqual(caught.exception.code, 400)
+        self.assertIn("webbsida", payload["error"])
 
     def test_fel_i_api_ger_json_inte_stacktrace(self):
         with self.assertRaises(HTTPError) as caught:

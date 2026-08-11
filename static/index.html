@@ -18,6 +18,8 @@
     </div>
   </header>
 
+  <p id="flash" class="flash" hidden></p>
+
   <main id="view-sources" hidden>
     <div class="view-head">
       <div>
@@ -111,6 +113,43 @@
         <button value="cancel" id="import-cancel" class="link">Avbryt</button>
         <button value="default" id="import-preview" class="primary">Förhandsgranska</button>
         <button value="default" id="import-confirm" class="primary" hidden>Bekräfta import</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="receipt-dialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Verifikat</h2>
+      <p class="muted" id="receipt-context"></p>
+
+      <div id="receipt-fetch" class="fetch-step">
+        <p class="small">
+          <strong>1.</strong> Hämta verifikatet hos leverantören och spara det på datorn.
+        </p>
+        <p id="receipt-link-row"></p>
+        <p id="receipt-note" class="muted small"></p>
+      </div>
+
+      <div class="fetch-step">
+        <p class="small"><strong>2.</strong> Ladda upp filen här.</p>
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="receipt-file" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif">
+          <p class="muted small">Eller dra filen hit. PDF, JPG, PNG eller HEIC.</p>
+        </div>
+        <p id="receipt-name" class="muted small"></p>
+      </div>
+
+      <div id="receipt-current" hidden>
+        <h3>Uppladdat verifikat</h3>
+        <p id="receipt-current-info" class="small"></p>
+      </div>
+
+      <p id="receipt-error" class="error" hidden></p>
+
+      <menu class="dialog-actions">
+        <button value="cancel" class="link">Stäng</button>
+        <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort verifikatet</button>
+        <button value="default" id="receipt-upload" class="primary">Ladda upp</button>
       </menu>
     </form>
   </dialog>

@@ -41,6 +41,11 @@ def build_routes(api: Api) -> List[Route]:
         Route("POST", r"/api/import/preview", _import_preview(api)),
         Route("POST", r"/api/import/commit", lambda req, m: api.import_commit(req.json().get("token", ""))),
         Route("POST", r"/api/import/cancel", lambda req, m: api.import_cancel(req.json().get("token", ""))),
+        Route("POST", r"/api/transactions/(?P<id>.+)/receipt", _upload_receipt(api)),
+        Route("DELETE", r"/api/transactions/(?P<id>.+)/receipt", lambda req, m: api.delete_receipt(
+            _unquote(m.group("id"))
+        )),
+        Route("GET", r"/api/transactions/(?P<id>.+)/receipt/file", _receipt_file(api)),
         Route("PATCH", r"/api/transactions/bulk", lambda req, m: api.update_transactions_bulk(
             req.json().get("ids") or [], req.json().get("changes") or {}
         )),
@@ -63,6 +68,36 @@ def _unquote(value: str) -> str:
     from urllib.parse import unquote
 
     return unquote(value)
+
+
+def _upload_receipt(api: Api) -> Callable:
+    def handler(request, match):
+        parts = request.multipart()
+        upload = parts.get("file")
+        if not upload:
+            raise ApiError("Ingen fil bifogades.")
+        filename, data = upload
+        return api.upload_receipt(_unquote(match.group("id")), filename, data)
+
+    return handler
+
+
+def _receipt_file(api: Api) -> Callable:
+    """Serverar verifikatet. Markerad med FileResponse så routern vet att den
+    inte ska JSON-koda innehållet."""
+
+    def handler(request, match):
+        data, mimetype, filename = api.receipt_file(_unquote(match.group("id")))
+        return FileResponse(data, mimetype, filename)
+
+    return handler
+
+
+class FileResponse:
+    def __init__(self, data: bytes, mimetype: str, filename: str) -> None:
+        self.data = data
+        self.mimetype = mimetype
+        self.filename = filename
 
 
 def _import_preview(api: Api) -> Callable:
@@ -169,7 +204,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.log_error("Ohanterat fel i %s %s: %s", method, path, error)
                 self._send_json({"error": "Internt fel: {}".format(error)}, status=500)
             else:
-                self._send_json(payload)
+                if isinstance(payload, FileResponse):
+                    self._send_file(payload)
+                else:
+                    self._send_json(payload)
             return
 
         if method == "GET":
@@ -198,6 +236,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_file(self, response: "FileResponse") -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", response.mimetype)
+        self.send_header("Content-Length", str(len(response.data)))
+        self.send_header(
+            "Content-Disposition", 'inline; filename="{}"'.format(response.filename)
+        )
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(response.data)
 
     def _send_json(self, payload: Any, status: int = 200) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

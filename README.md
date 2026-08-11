@@ -5,9 +5,8 @@ Lokalt verktyg för att stämma av banktransaktioner mot verifikat.
 All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON-filer
 och en webbapp mot `localhost`.
 
-> **Status: steg 1–5 av 9 byggda.** Import, dubbletthantering och arbetslistan
-> fungerar mot skarp data. Uppladdning av verifikat, `.eml`-utskick och
-> inställningsvy är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
+> **Status: steg 1–6 av 9 byggda.** Import, dubbletthantering och arbetslistan
+> fungerar mot skarp data. `.eml`-utskick och inställningsvy är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
 
 ## Kom igång
 
@@ -33,6 +32,8 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 3. Markera vilka rader som inte kräver verifikat. De försvinner ur arbetslistan
    men finns kvar — växla **Visa även rader utan verifikatkrav** för att se dem.
 4. Koppla rader till underlagskällor. Källan bär länken dit verifikatet hämtas.
+5. Klicka **Ladda upp** på en rad. Modalen visar källans länk — öppna den, logga
+   in, ladda hem filen, och ladda upp den. Du kan också dra filen direkt på raden.
 
 Varje rad visar sin källa som en pill under datumet. Saknas källa står det
 **Koppla källa** där istället — aldrig båda, så raden håller sig smal. Under
@@ -150,6 +151,7 @@ kvittokoll/             logiken
   storage.py            atomiska skrivningar, backup, papperskorg
   dedupe.py             dubblettnyckeln
   sources.py            källmatchning
+  receipts.py           uppladdning och namnstandard
   importer.py           förhandsgranska → bekräfta
   importers/            camt.053, CSV, profiler
   api.py                API-lagret, vet inget om HTTP
@@ -160,11 +162,52 @@ profiles/               importprofiler
 data/                   din data — ligger i .gitignore
   transactions.json
   sources.json
+  receipts/ÅÅÅÅ-MM/     uppladdade verifikat
   backups/
+  trash/
 ```
 
 `data/`, `receipts/` och `settings.json` ligger i `.gitignore`. Ingen av dina
 transaktioner hamnar av misstag i ett publikt repo.
+
+## Verifikat
+
+Verktyget kan inte hämta verifikatet åt dig — det ligger bakom leverantörens
+inloggning. Källans `receipt_url` är därför en genväg, inte en nedladdning: den
+öppnas i en ny flik så att du slipper leta upp sidan varje gång, och källans
+anteckning beskriver sista biten av vägen dit.
+
+Filen du laddar upp **kopieras** in under `data/receipts/ÅÅÅÅ-MM/` så att den
+överlever att nedladdningsmappen töms. Originalfilen lämnas orörd och
+originalnamnet sparas.
+
+### Namnstandard
+
+```
+{date}_{amount}_{tag}.{ext}     →  2026-03-14_449.00_google-workspace.pdf
+```
+
+Beloppet är absolut, med två decimaler och punkt — minustecken fungerar dåligt
+i filnamn på vissa system. `{tag}` kommer från källans `filename_tag`; saknas
+källa används transaktionstexten, gemener, bindestreck, max 40 tecken, utan
+å/ä/ö. Vid namnkollision läggs `-2`, `-3` till.
+
+Mallen ändras med `filename_template` i `settings.json`. Platshållare:
+`{date}`, `{amount}`, `{tag}`, `{company}`, `{account}`. Blir en platshållare
+tom dras dubbla avgränsare ihop, så `{date}_{company}_{tag}` utan bolag ger
+`2026-03-14_google-workspace` och inte `2026-03-14__google-workspace`.
+
+### Vad som kontrolleras
+
+PDF, JPG, PNG och HEIC accepteras, och **innehållet** kontrolleras — inte bara
+filändelsen. Det vanligaste misslyckandet när man hämtar verifikat bakom
+inloggning är att man inte var inloggad och fick en HTML-sida som heter
+`faktura.pdf`. Den avvisas med besked om vad som hänt, i stället för att
+upptäckas av bokföraren en månad senare.
+
+Ett verifikat per transaktion i version 1. Laddar du upp ett nytt flyttas det
+gamla till papperskorgen. Samma sak vid **Ta bort verifikatet** — filer raderas
+aldrig, de flyttas till `data/trash/`.
 
 ## Typsnitt
 
@@ -190,13 +233,13 @@ adress som andra kan nå.
 ## Vad som saknas
 
 Byggt: datamodell med atomiska skrivningar, import av camt.053 och CSV,
-dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare, samt
-källregistret med matchning, koppling och redigerbar källvy.
+dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare,
+källregistret med matchning, koppling och redigerbar källvy, samt uppladdning
+av verifikat med namnstandard.
 
-Inte byggt ännu: uppladdning av verifikat med namnstandard (steg 6),
-`.eml`-generering enskilt och i grupp (steg 7) och inställningsvy (steg 8).
-Kolumnerna Verifikat och Skickat i arbetslistan visar status men har inga
-knappar ännu.
+Inte byggt ännu: `.eml`-generering enskilt och i grupp (steg 7) och
+inställningsvy (steg 8). Kolumnen Skickat visar status men har ingen knapp
+ännu.
 
 ## Krav
 
