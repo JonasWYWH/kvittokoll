@@ -5,8 +5,8 @@ Lokalt verktyg för att stämma av banktransaktioner mot verifikat.
 All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON-filer
 och en webbapp mot `localhost`.
 
-> **Status: steg 1–4 av 9 byggda.** Import, dubbletthantering och arbetslistan
-> fungerar mot skarp data. Uppladdning av verifikat, `.eml`-utskick, källvy och
+> **Status: steg 1–5 av 9 byggda.** Import, dubbletthantering och arbetslistan
+> fungerar mot skarp data. Uppladdning av verifikat, `.eml`-utskick och
 > inställningsvy är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
 
 ## Kom igång
@@ -33,6 +33,11 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 3. Markera vilka rader som inte kräver verifikat. De försvinner ur arbetslistan
    men finns kvar — växla **Visa även rader utan verifikatkrav** för att se dem.
 4. Koppla rader till underlagskällor. Källan bär länken dit verifikatet hämtas.
+
+Varje rad visar sin källa som en pill under datumet. Saknas källa står det
+**Koppla källa** där istället — aldrig båda, så raden håller sig smal. Under
+**Källor** i toppen redigerar du namn, länkar, verifikattyp och mönster, och
+ser hur många transaktioner varje källa fångar.
 
 Importen är additiv. Den lägger bara till rader — den ändrar aldrig en status,
 tar aldrig bort något och rör aldrig ett verifikat du redan laddat upp. Före
@@ -185,13 +190,13 @@ adress som andra kan nå.
 ## Vad som saknas
 
 Byggt: datamodell med atomiska skrivningar, import av camt.053 och CSV,
-dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare, källregister
-med matchning och koppling.
+dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare, samt
+källregistret med matchning, koppling och redigerbar källvy.
 
 Inte byggt ännu: uppladdning av verifikat med namnstandard (steg 6),
-`.eml`-generering enskilt och i grupp (steg 7), källvy och inställningsvy
-(steg 5 och 8). Kolumnerna Verifikat och Skickat i arbetslistan visar status men
-har inga knappar ännu.
+`.eml`-generering enskilt och i grupp (steg 7) och inställningsvy (steg 8).
+Kolumnerna Verifikat och Skickat i arbetslistan visar status men har inga
+knappar ännu.
 
 ## Krav
 

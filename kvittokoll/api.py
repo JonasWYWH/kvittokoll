@@ -12,8 +12,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from . import importer
 from .importers import ImportError_
 from .importers.profiles import load_profiles
-from .models import MATCH_CONTAINS, MATCH_MODES, MatchPattern, Transaction
-from .normalize import normalize_text
+from .models import (
+    MATCH_CONTAINS,
+    MATCH_MODES,
+    RECEIPT_TYPE_DIGITAL,
+    RECEIPT_TYPE_PHYSICAL,
+    MatchPattern,
+    Transaction,
+)
+from .normalize import normalize_text, slugify
 from .sources import MODE_LABELS, compile_pattern, match_source, new_source, suggest_pattern
 from .storage import Store
 
@@ -49,7 +56,7 @@ class Api:
     def state(self) -> Dict[str, Any]:
         return {
             "settings": {key: self.store.settings.get(key) for key in PUBLIC_SETTINGS},
-            "sources": [source.to_dict() for source in self.store.sources()],
+            "sources": [self._source_payload(s) for s in self.store.sources()],
             "profiles": [
                 {"id": profile.id, "name": profile.name, "note": profile.note}
                 for profile in load_profiles(self.store.profiles_dir)
@@ -191,14 +198,14 @@ class Api:
             settings_url=data.get("settings_url"),
             receipt_type=data.get("receipt_type"),
             requires_receipt=data.get("requires_receipt"),
-            match_patterns=list(data.get("match_patterns") or []),
+            match_patterns=self._clean_patterns(data.get("match_patterns") or []),
             filename_tag=data.get("filename_tag"),
             note=data.get("note"),
         )
         sources = self.store.sources()
         sources.append(source)
         self.store.save_sources(sources)
-        return {"source": source.to_dict()}
+        return {"source": self._source_payload(source)}
 
     def test_pattern(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Prova ett mönster mot en rad och mot hela listan.
@@ -222,6 +229,80 @@ class Api:
             "samples": [t.description for t in hits[:5]],
             "normalized": normalize_text(description),
         }
+
+    def update_source(self, source_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        source = self.store.source_by_id(source_id)
+        if source is None:
+            raise ApiError("Källan finns inte.", status=404)
+
+        if "name" in data:
+            name = str(data["name"] or "").strip()
+            if not name:
+                raise ApiError("Källan behöver ett namn.")
+            source.name = name
+        for field in ("company", "receipt_url", "settings_url", "note"):
+            if field in data:
+                setattr(source, field, str(data[field] or "").strip())
+        if "receipt_type" in data:
+            receipt_type = str(data["receipt_type"] or "").strip().lower()
+            if receipt_type not in (RECEIPT_TYPE_DIGITAL, RECEIPT_TYPE_PHYSICAL):
+                raise ApiError("Okänd verifikattyp: {}".format(receipt_type))
+            source.receipt_type = receipt_type
+        for flag in ("requires_receipt", "auto_send_configured"):
+            if flag in data:
+                setattr(source, flag, bool(data[flag]))
+        if "filename_tag" in data:
+            source.filename_tag = slugify(data["filename_tag"]) or slugify(source.name)
+        if "match_patterns" in data:
+            source.match_patterns = self._clean_patterns(data["match_patterns"])
+
+        self.store.save_sources()
+        return {"source": self._source_payload(source)}
+
+    def delete_source(self, source_id: str) -> Dict[str, Any]:
+        """Ta bort en källa och koppla loss raderna som pekade på den.
+
+        Transaktionerna finns kvar — bara kopplingen försvinner. Att radera
+        en källa får aldrig innebära att en rad försvinner ur avstämningen.
+        """
+        source = self.store.source_by_id(source_id)
+        if source is None:
+            raise ApiError("Källan finns inte.", status=404)
+
+        uncoupled = 0
+        for transaction in self.store.transactions():
+            if transaction.source_id == source_id:
+                transaction.source_id = None
+                transaction.ambiguous_sources = []
+                uncoupled += 1
+        if uncoupled:
+            self.store.save_transactions()
+
+        self.store.save_sources([s for s in self.store.sources() if s.id != source_id])
+        return {"deleted": source_id, "uncoupled": uncoupled}
+
+    def _clean_patterns(self, values) -> List[MatchPattern]:
+        if not isinstance(values, list):
+            raise ApiError("match_patterns måste vara en lista.")
+        cleaned = []
+        for value in values:
+            pattern = MatchPattern.from_any(value)
+            if isinstance(value, dict):
+                mode = str(value.get("mode") or MATCH_CONTAINS).strip().lower()
+                if mode not in MATCH_MODES:
+                    raise ApiError("Okänt matchningsläge: {}".format(mode))
+            if pattern.pattern.strip():
+                pattern.pattern = pattern.pattern.strip()
+                cleaned.append(pattern)
+        return cleaned
+
+    def _source_payload(self, source) -> Dict[str, Any]:
+        """Källan plus antal kopplade transaktioner (§9.3)."""
+        data = source.to_dict()
+        data["transaction_count"] = sum(
+            1 for t in self.store.transactions() if t.source_id == source.id
+        )
+        return data
 
     def rematch_sources(self) -> Dict[str, Any]:
         """Kör om källmatchningen på alla okopplade rader.

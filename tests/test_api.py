@@ -155,6 +155,94 @@ class ApiTest(unittest.TestCase):
                 "match_pattern": "NETLIFY", "match_pattern_mode": "kanske",
             })
 
+    # -- redigera källor --------------------------------------------------
+
+    def test_kallan_kan_redigeras(self):
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        result = self.api.update_source(created["id"], {
+            "name": "Netlify Inc",
+            "company": "Netlify",
+            "receipt_url": "https://app.netlify.com/billing",
+            "settings_url": "https://app.netlify.com/settings",
+            "receipt_type": "physical",
+            "requires_receipt": False,
+            "auto_send_configured": True,
+            "note": "Under Billing → Receipts",
+        })["source"]
+        self.assertEqual(result["name"], "Netlify Inc")
+        self.assertEqual(result["receipt_type"], "physical")
+        self.assertFalse(result["requires_receipt"])
+        self.assertTrue(result["auto_send_configured"])
+
+        source = self.store.source_by_id(created["id"])
+        self.assertEqual(source.receipt_url, "https://app.netlify.com/billing")
+        self.assertEqual(source.note, "Under Billing → Receipts")
+
+    def test_monster_kan_bytas_ut_med_lagen(self):
+        created = self.api.create_source({"name": "Hyra"})["source"]
+        self.api.update_source(created["id"], {"match_patterns": [
+            {"pattern": "HYRA", "mode": "starts_with"},
+            "KONTORSHYRA",
+        ]})
+        patterns = self.store.source_by_id(created["id"]).match_patterns
+        self.assertEqual([(p.pattern, p.mode) for p in patterns],
+                         [("HYRA", "starts_with"), ("KONTORSHYRA", "contains")])
+
+    def test_tomma_monster_faller_bort(self):
+        created = self.api.create_source({"name": "Hyra"})["source"]
+        self.api.update_source(created["id"], {"match_patterns": ["HYRA", "", "   "]})
+        self.assertEqual(len(self.store.source_by_id(created["id"]).match_patterns), 1)
+
+    def test_okant_lage_i_monsterlistan_avvisas(self):
+        created = self.api.create_source({"name": "Hyra"})["source"]
+        with self.assertRaises(ApiError):
+            self.api.update_source(created["id"], {
+                "match_patterns": [{"pattern": "HYRA", "mode": "nastan"}]})
+
+    def test_okand_verifikattyp_avvisas(self):
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        with self.assertRaises(ApiError):
+            self.api.update_source(created["id"], {"receipt_type": "papper"})
+
+    def test_tomt_namn_avvisas(self):
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        with self.assertRaises(ApiError):
+            self.api.update_source(created["id"], {"name": "   "})
+
+    def test_filnamnstaggen_slugifieras(self):
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        result = self.api.update_source(created["id"], {"filename_tag": "Försäkring AB"})["source"]
+        self.assertEqual(result["filename_tag"], "forsakring-ab")
+
+    def test_redigering_av_okand_kalla_ger_404(self):
+        with self.assertRaises(ApiError) as caught:
+            self.api.update_source("finns-inte", {"name": "X"})
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_kallan_bar_antal_kopplade_transaktioner(self):
+        source = [s for s in self.api.state()["sources"] if s["id"] == "google-workspace"][0]
+        self.assertEqual(source["transaction_count"], 1)
+
+    # -- ta bort källor ---------------------------------------------------
+
+    def test_borttagning_kopplar_loss_men_raderar_inga_rader(self):
+        before = len(self.api.transactions()["transactions"])
+        result = self.api.delete_source("google-workspace")
+        self.assertEqual(result["uncoupled"], 1)
+        self.assertIsNone(self.store.source_by_id("google-workspace"))
+        self.assertEqual(len(self.api.transactions()["transactions"]), before)
+        self.assertIsNone(self.transaction("Google Workspace_ab Dublin")["source_id"])
+
+    def test_borttagningen_overlever_omlasning_fran_disk(self):
+        self.api.delete_source("google-workspace")
+        fresh = Api(temp_store_like(self.store))
+        self.assertEqual([s["id"] for s in fresh.state()["sources"]], [])
+
+    def test_borttagning_av_okand_kalla_ger_404(self):
+        with self.assertRaises(ApiError) as caught:
+            self.api.delete_source("finns-inte")
+        self.assertEqual(caught.exception.status, 404)
+
     # -- provning av mönster ----------------------------------------------
 
     def test_provning_raknar_traffar_i_hela_listan(self):

@@ -9,12 +9,34 @@
 <body>
   <header class="topbar">
     <h1>Kvittokoll</h1>
+    <nav class="topbar-nav">
+      <button class="link nav" data-view="list" aria-current="page">Arbetslistan</button>
+      <button class="link nav" data-view="sources">Källor</button>
+    </nav>
     <div class="topbar-actions">
       <button id="import-open" class="primary">Importera transaktioner</button>
     </div>
   </header>
 
-  <main>
+  <main id="view-sources" hidden>
+    <div class="view-head">
+      <div>
+        <h2>Underlagskällor</h2>
+        <p class="muted small">
+          En källa är en specifik tjänst, inte ett bolag. Google Workspace och
+          Google Cloud är två källor. Källan bär länken dit verifikatet hämtas.
+        </p>
+      </div>
+      <div class="actions">
+        <button id="source-rematch">Kör om matchningen</button>
+        <button id="source-create" class="primary">Ny källa</button>
+      </div>
+    </div>
+    <p id="sources-message" class="muted small" hidden></p>
+    <div id="sources-list"></div>
+  </main>
+
+  <main id="view-list">
     <section id="summary" class="summary" hidden></section>
 
     <section class="filters">

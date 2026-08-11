@@ -15,6 +15,9 @@ const state = {
   openNotes: new Set(),
   staged: null,
   sourceTarget: null,
+  view: "list",
+  editingSource: null,
+  sourceDraft: {},
 };
 
 const el = (id) => document.getElementById(id);
@@ -73,6 +76,7 @@ async function load() {
   fillSourceFilter();
   fillProfiles();
   render();
+  if (state.view === "sources") renderSources();
 }
 
 function fillSourceFilter() {
@@ -228,7 +232,6 @@ function renderMonth(key, rows) {
       <th>Datum</th>
       <th>Text</th>
       <th class="amount">Belopp</th>
-      <th>Källa</th>
       <th>Verifikat</th>
       <th>Skickat</th>
       <th>Åtgärder</th>
@@ -249,32 +252,39 @@ function renderRow(row) {
   tr.dataset.id = row.id;
   if (!row.requires_receipt) tr.classList.add("not-required");
 
+  // Alltid exakt en sak under datumet: en pill när källan finns, annars en
+  // länk som kopplar. Aldrig båda.
   const sourceCell = source
-    ? `<span class="source-name">${escapeHtml(source.name)}</span>` +
-      (source.receipt_url
-        ? `<a href="${escapeHtml(source.receipt_url)}" target="_blank" rel="noopener"
-             title="${escapeHtml(source.note || "")}">Öppna källa ↗</a>`
-        : "")
+    ? `<button class="pill" data-action="source"
+         title="${escapeHtml(source.company || source.name)} — klicka för att koppla om"
+         >${escapeHtml(source.name)}</button>`
     : row.ambiguous_sources && row.ambiguous_sources.length
-      ? '<span class="badge ambiguous">Tvetydig — välj källa</span>'
-      : '<span class="source-none">Ingen källa</span>';
+      ? `<button class="pill ambiguous" data-action="source"
+           title="Flera källor matchar lika starkt">Tvetydig källa</button>`
+      : `<button class="link-quiet" data-action="source">Koppla källa</button>`;
 
   tr.innerHTML = `
     <td class="select"><input type="checkbox" data-select="${escapeHtml(row.id)}"
       ${state.selected.has(row.id) ? "checked" : ""}></td>
-    <td class="date">${row.date}</td>
+    <td class="date">
+      <span class="cell-main num">${row.date}</span>
+      <span class="cell-meta">${sourceCell}</span>
+    </td>
     <td class="text">
-      <span class="text-main">${escapeHtml(row.description) || "<em>utan text</em>"}</span>
-      <span class="text-meta">${escapeHtml(row.transaction_type)}${
+      <span class="cell-main">${escapeHtml(row.description) || "<em>utan text</em>"}</span>
+      <span class="cell-meta">${escapeHtml(row.transaction_type)}${
         row.note ? ` · ${escapeHtml(row.note)}` : ""
       }</span>
     </td>
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
-    <td><div class="source-cell">${sourceCell}
-      <button class="tiny" data-action="source">Koppla…</button></div></td>
     <td><span class="badge ${row.status}">${STATUS_LABEL[row.status]}</span></td>
-    <td class="date">${row.sent_at ? row.sent_at.slice(0, 10) : "—"}</td>
+    <td class="date">${row.sent_at ? `<span class="num">${row.sent_at.slice(0, 10)}</span>` : "—"}</td>
     <td class="actions">
+      ${source && source.receipt_url
+        ? `<a class="tiny button-like" href="${escapeHtml(source.receipt_url)}"
+             target="_blank" rel="noopener"
+             title="${escapeHtml(source.note || "")}">Hämta ↗</a>`
+        : ""}
       <button class="tiny" data-action="toggle-required">${
         row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
       }</button>
@@ -287,7 +297,7 @@ function renderNoteRow(row) {
   const tr = document.createElement("tr");
   tr.className = "note-row";
   tr.dataset.id = row.id;
-  tr.innerHTML = `<td></td><td colspan="7">
+  tr.innerHTML = `<td></td><td colspan="6">
     <textarea data-note="${escapeHtml(row.id)}"
       placeholder="Anteckning om raden">${escapeHtml(row.note)}</textarea>
     <div class="actions"><button class="tiny primary" data-action="note-save">Spara</button>
@@ -386,6 +396,252 @@ el("bulk").addEventListener("click", async (event) => {
     }
     state.selected.clear();
     render();
+  } catch (error) {
+    window.alert(error.message);
+  }
+});
+
+/* ---------- vyväxling ---------- */
+
+function showView(name) {
+  state.view = name;
+  el("view-list").hidden = name !== "list";
+  el("view-sources").hidden = name !== "sources";
+  for (const button of document.querySelectorAll("button.nav")) {
+    const active = button.dataset.view === name;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  if (name === "sources") renderSources();
+}
+
+for (const button of document.querySelectorAll("button.nav")) {
+  button.addEventListener("click", () => showView(button.dataset.view));
+}
+
+/* ---------- källvyn ---------- */
+
+function renderSources() {
+  const list = el("sources-list");
+  if (!state.sources.length) {
+    list.innerHTML = `<p class="empty">Inga källor ännu. En källa skapas enklast
+      från en transaktionsrad — klicka <em>Koppla källa</em> i arbetslistan — eller
+      med <em>Ny källa</em> här.</p>`;
+    return;
+  }
+  list.innerHTML = state.sources.map(renderSourceCard).join("");
+}
+
+function renderSourceCard(source) {
+  const editing = state.editingSource === source.id;
+  if (editing) return renderSourceEditor(source);
+
+  const patterns = (source.match_patterns || []).map((raw) => {
+    const pattern = typeof raw === "string" ? { pattern: raw, mode: "contains" } : raw;
+    const label = (state.matchModes.find((m) => m.id === pattern.mode) || {}).label || pattern.mode;
+    return `<span class="pattern"><span class="pattern-mode">${escapeHtml(label)}</span>
+      ${escapeHtml(pattern.pattern)}</span>`;
+  });
+
+  return `<article class="source-card" data-source="${escapeHtml(source.id)}">
+    <div class="source-head">
+      <div>
+        <h3>${escapeHtml(source.name)}</h3>
+        <p class="muted small">${escapeHtml(source.company) || "—"} ·
+          <span class="num">${source.transaction_count}</span> kopplade transaktioner ·
+          ${source.receipt_type === "physical" ? "fotas/scannas" : "digitalt"} ·
+          ${source.requires_receipt ? "kräver verifikat" : "kräver inget verifikat"}
+          ${source.auto_send_configured ? " · mejlas automatiskt" : ""}</p>
+      </div>
+      <div class="actions">
+        <button class="tiny" data-source-action="edit">Redigera</button>
+      </div>
+    </div>
+    <div class="source-links">
+      ${source.receipt_url
+        ? `<a href="${escapeHtml(source.receipt_url)}" target="_blank" rel="noopener">Hämta verifikat ↗</a>`
+        : `<span class="muted small">Ingen länk till verifikat</span>`}
+      ${source.settings_url
+        ? `<a href="${escapeHtml(source.settings_url)}" target="_blank" rel="noopener">Ställ in mejladress ↗</a>`
+        : ""}
+    </div>
+    ${source.note ? `<p class="source-note">${escapeHtml(source.note)}</p>` : ""}
+    <div class="patterns">${patterns.join("") || '<span class="muted small">Inga mönster — matchar inget automatiskt</span>'}</div>
+  </article>`;
+}
+
+function renderSourceEditor(source) {
+  const patterns = (source.match_patterns || []).map((raw) =>
+    typeof raw === "string" ? { pattern: raw, mode: "contains" } : raw
+  );
+  const modeOptions = (selected) =>
+    state.matchModes
+      .map((m) => `<option value="${m.id}"${m.id === selected ? " selected" : ""}>${escapeHtml(m.label)}</option>`)
+      .join("");
+
+  return `<article class="source-card editing" data-source="${escapeHtml(source.id)}">
+    <div class="grid-two">
+      <label class="field block">Namn<input type="text" data-field="name" value="${escapeHtml(source.name)}"></label>
+      <label class="field block">Bolag<input type="text" data-field="company" value="${escapeHtml(source.company)}"></label>
+      <label class="field block">Länk till verifikat
+        <input type="url" data-field="receipt_url" value="${escapeHtml(source.receipt_url)}"
+               placeholder="https://…"></label>
+      <label class="field block">Länk till mejlinställningar
+        <input type="url" data-field="settings_url" value="${escapeHtml(source.settings_url)}"
+               placeholder="https://…"></label>
+      <label class="field block">Verifikattyp
+        <select data-field="receipt_type">
+          <option value="digital"${source.receipt_type !== "physical" ? " selected" : ""}>digitalt — hämtas via länk</option>
+          <option value="physical"${source.receipt_type === "physical" ? " selected" : ""}>fysiskt — fotas eller scannas</option>
+        </select></label>
+      <label class="field block">Filnamnstagg
+        <input type="text" data-field="filename_tag" value="${escapeHtml(source.filename_tag)}"></label>
+    </div>
+    <label class="field block">Anteckning — vägen till verifikatet hos leverantören
+      <textarea data-field="note" rows="2">${escapeHtml(source.note)}</textarea></label>
+    <div class="toggles">
+      <label class="toggle"><input type="checkbox" data-field="requires_receipt"
+        ${source.requires_receipt ? "checked" : ""}> Nya rader kräver verifikat</label>
+      <label class="toggle"><input type="checkbox" data-field="auto_send_configured"
+        ${source.auto_send_configured ? "checked" : ""}> Leverantören mejlar redan till bokföringen</label>
+    </div>
+
+    <h4>Matchningsmönster</h4>
+    <div class="pattern-editor">
+      ${patterns.map((pattern, index) => `
+        <div class="pattern-row" data-index="${index}">
+          <select data-pattern-mode>${modeOptions(pattern.mode)}</select>
+          <input type="text" data-pattern-text value="${escapeHtml(pattern.pattern)}">
+          <button class="tiny" data-source-action="drop-pattern" title="Ta bort mönstret">✕</button>
+        </div>`).join("")}
+    </div>
+    <button class="tiny" data-source-action="add-pattern">Lägg till mönster</button>
+
+    <div class="editor-actions">
+      <button class="link danger" data-source-action="delete">Ta bort källan</button>
+      <span class="spacer"></span>
+      <button class="link" data-source-action="cancel">Avbryt</button>
+      <button class="primary" data-source-action="save">Spara</button>
+    </div>
+    <p class="error" data-source-error hidden></p>
+  </article>`;
+}
+
+el("sources-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-source-action]");
+  if (!button) return;
+  const card = button.closest("[data-source]");
+  const id = card.dataset.source;
+  const action = button.dataset.sourceAction;
+
+  if (action === "edit") {
+    state.editingSource = id;
+    renderSources();
+  } else if (action === "cancel") {
+    state.editingSource = null;
+    renderSources();
+  } else if (action === "add-pattern") {
+    collectDraft(card, id);
+    state.sourceDraft.match_patterns.push({ pattern: "", mode: "contains" });
+    applyDraft(id);
+  } else if (action === "drop-pattern") {
+    collectDraft(card, id);
+    state.sourceDraft.match_patterns.splice(Number(button.closest(".pattern-row").dataset.index), 1);
+    applyDraft(id);
+  } else if (action === "save") {
+    collectDraft(card, id);
+    try {
+      await request(`/api/sources/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state.sourceDraft),
+      });
+      state.editingSource = null;
+      await load();
+      showView("sources");
+      message(`Källan sparad.`);
+    } catch (error) {
+      const box = card.querySelector("[data-source-error]");
+      box.hidden = false;
+      box.textContent = error.message;
+    }
+  } else if (action === "delete") {
+    const source = sourceById(id);
+    const count = source ? source.transaction_count : 0;
+    const ok = window.confirm(
+      count
+        ? `Ta bort "${source.name}"? ${count} transaktioner kopplas loss. Raderna finns kvar.`
+        : `Ta bort "${source ? source.name : id}"?`
+    );
+    if (!ok) return;
+    try {
+      const result = await request(`/api/sources/${encodeURIComponent(id)}`, { method: "DELETE" });
+      state.editingSource = null;
+      await load();
+      showView("sources");
+      message(`Källan borttagen. ${result.uncoupled} rader kopplades loss.`);
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
+});
+
+/* Läser av formuläret innan en omritning, så att inskrivna värden inte
+   försvinner när man lägger till eller tar bort ett mönster. */
+function collectDraft(card, id) {
+  const draft = {};
+  for (const input of card.querySelectorAll("[data-field]")) {
+    draft[input.dataset.field] = input.type === "checkbox" ? input.checked : input.value;
+  }
+  draft.match_patterns = [...card.querySelectorAll(".pattern-row")].map((row) => ({
+    pattern: row.querySelector("[data-pattern-text]").value,
+    mode: row.querySelector("[data-pattern-mode]").value,
+  }));
+  state.sourceDraft = draft;
+  return draft;
+}
+
+function applyDraft(id) {
+  const index = state.sources.findIndex((s) => s.id === id);
+  if (index >= 0) state.sources[index] = { ...state.sources[index], ...state.sourceDraft };
+  renderSources();
+}
+
+function message(text) {
+  const box = el("sources-message");
+  box.hidden = false;
+  box.textContent = text;
+  setTimeout(() => { box.hidden = true; }, 4000);
+}
+
+el("source-create").addEventListener("click", async () => {
+  const name = window.prompt("Vad heter källan?");
+  if (!name || !name.trim()) return;
+  try {
+    const created = await request("/api/sources", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await load();
+    state.editingSource = created.source.id;
+    showView("sources");
+  } catch (error) {
+    window.alert(error.message);
+  }
+});
+
+el("source-rematch").addEventListener("click", async () => {
+  try {
+    const result = await request("/api/sources/rematch", { method: "POST" });
+    await load();
+    showView("sources");
+    message(
+      result.changed
+        ? `${result.changed} rader kopplades till en källa.`
+        : "Inga okopplade rader matchade någon källa."
+    );
   } catch (error) {
     window.alert(error.message);
   }

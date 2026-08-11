@@ -136,6 +136,27 @@ class ServerTest(unittest.TestCase):
         )
         self.assertEqual(len(result["updated"]), 2)
 
+    def test_kallor_kan_redigeras_och_tas_bort_over_http(self):
+        _, created = self.json_call("POST", "/api/sources", {"name": "Hyra kontor"})
+        source_id = created["source"]["id"]
+
+        _, updated = self.json_call(
+            "PATCH",
+            "/api/sources/{}".format(quote(source_id, safe="")),
+            {"company": "Hyresvärden AB",
+             "match_patterns": [{"pattern": "HYRA", "mode": "starts_with"}]},
+        )
+        self.assertEqual(updated["source"]["company"], "Hyresvärden AB")
+        self.assertEqual(updated["source"]["match_patterns"],
+                         [{"pattern": "HYRA", "mode": "starts_with"}])
+
+        status, deleted = self.call("DELETE", "/api/sources/{}".format(quote(source_id, safe="")))
+        self.assertEqual(status, 200)
+        self.assertEqual(deleted["deleted"], source_id)
+
+        _, state = self.call("GET", "/api/state")
+        self.assertEqual(state["sources"], [])
+
     def test_fel_i_api_ger_json_inte_stacktrace(self):
         with self.assertRaises(HTTPError) as caught:
             self.json_call("POST", "/api/import/commit", {"token": "finns-inte"})

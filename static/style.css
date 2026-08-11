@@ -66,6 +66,8 @@
   --sent: #2c6e49;
   --sent-bg: #eef5ef;
   --neutral-bg: #f1f0ec;
+  --accent-soft: #e4efe9;
+  --accent-ink: #1a5442;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -83,6 +85,8 @@
     --sent: #8dc9a3;
     --sent-bg: #1d2a22;
     --neutral-bg: #26282b;
+    --accent-soft: #22362e;
+    --accent-ink: #9fd8c1;
   }
 }
 
@@ -100,8 +104,11 @@ body {
 }
 
 /* Numeriska värden i JetBrains Mono. Den går tyngre och bredare än
-   Work Sans vid samma px, därav nedskalningen. */
-.num, td.date, td.amount, .summary .count, .preview-summary b {
+   Work Sans vid samma px, därav nedskalningen.
+
+   Reglen sitter på .num och td.amount, inte på td.date — datumcellen bär
+   numera även källpillen, och den är text. */
+.num, td.amount, .summary .count, .preview-summary b {
   font-family: var(--font-num);
   font-size: 0.93em;
   font-variant-numeric: tabular-nums;
@@ -124,6 +131,10 @@ main { padding: 0 24px 80px; max-width: 1400px; margin: 0 auto; }
 }
 
 .topbar h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+.topbar-nav { display: flex; gap: 4px; margin-right: auto; }
+button.nav { text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+button.nav:hover { background: var(--neutral-bg); }
+button.nav.active { color: var(--ink); background: var(--neutral-bg); font-weight: 600; }
 
 button {
   font: inherit;
@@ -232,9 +243,6 @@ td.select { width: 28px; }
 
 tr.not-required td.text, tr.not-required td.amount { opacity: 0.55; }
 
-.text-main { display: block; }
-.text-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
-
 .badge {
   display: inline-block;
   padding: 1px 7px;
@@ -251,9 +259,57 @@ tr.not-required td.text, tr.not-required td.amount { opacity: 0.55; }
 
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
-.source-cell { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
-.source-name { font-size: 14px; }
-.source-none { color: var(--muted); font-style: italic; }
+/* Radens andra rad: källan under datumet, i linje med transaktionstypen. */
+.cell-main { display: block; }
+.cell-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 18px; }
+
+.pill {
+  display: inline-block;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.pill:hover { border-color: var(--accent); }
+.pill.ambiguous { background: var(--has-receipt-bg); color: var(--has-receipt); }
+
+.link-quiet {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link-quiet:hover { color: var(--accent); }
+
+a.button-like {
+  display: inline-block;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+a.button-like:hover { border-color: var(--muted); }
 
 a { color: var(--accent); }
 
@@ -294,3 +350,55 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .error-list { max-height: 190px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 8px; }
 .error-list table { border: none; border-radius: 0; }
 .error-list td { font-size: 13px; }
+
+
+/* ---------- källvyn ---------- */
+
+.view-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin: 24px 0 16px;
+}
+
+.view-head h2 { margin: 0 0 4px; font-size: 17px; }
+.view-head p { margin: 0; max-width: 60ch; }
+
+.source-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.source-card.editing { border-color: var(--accent); }
+.source-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.source-head h3 { margin: 0 0 2px; font-size: 15px; }
+.source-head p { margin: 0; }
+.source-links { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
+.source-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+.patterns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+.pattern {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.pattern-mode { color: var(--muted); font-size: 11px; }
+
+.grid-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 12px; }
+.source-card h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--muted); }
+.pattern-editor .pattern-row { margin: 0 0 6px; }
+.editor-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.editor-actions .spacer { flex: 1; }
+button.danger { color: var(--missing); }
