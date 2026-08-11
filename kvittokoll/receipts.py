@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from .models import Receipt, Source, Transaction
-from .normalize import format_amount, now_iso, slugify
+from .normalize import format_amount_filename, now_iso, slugify
 from .storage import Store, _fsync_dir
 
 # Vad som accepteras (§7.1), och vilken MIME-typ filen får när den serveras
@@ -105,8 +105,7 @@ def build_stem(
     tag = (source.filename_tag if source else "") or slugify(transaction.description, 40)
     values = {
         "date": transaction.date,
-        # Absolutbelopp: minustecken fungerar dåligt i filnamn på vissa system.
-        "amount": format_amount(abs(transaction.amount)),
+        "amount": format_amount_filename(transaction.amount),
         "tag": tag or "verifikat",
         "company": slugify(source.company, 40) if source and source.company else "",
         "account": slugify(transaction.account, 40),

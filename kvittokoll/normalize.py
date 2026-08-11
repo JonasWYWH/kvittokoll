@@ -58,6 +58,19 @@ def format_amount(amount: float) -> str:
     return "0.00" if text == "-0.00" else text
 
 
+def format_amount_filename(amount: float) -> str:
+    """Belopp för filnamn: absolutbelopp, två decimaler, bindestreck.
+
+    449.00 -> "449-00"
+
+    Varken punkt eller komma duger. Punkten läses som en filändelse och är
+    dessutom fel decimaltecken på svenska; kommat bråkar med CSV och
+    skalkommandon. Minustecknet utelämnas — det fungerar dåligt i filnamn på
+    vissa system, och tecknet framgår ändå av transaktionen.
+    """
+    return format_amount(abs(amount)).replace(".", "-")
+
+
 def parse_amount(raw, decimal_separator: str = ".", thousands_separator: str = "") -> float:
     """Tolkar ett belopp enligt profilens separatorer.
 

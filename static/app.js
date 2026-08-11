@@ -715,22 +715,48 @@ function openReceiptDialog(row) {
   renderReceiptLink(source);
   el("receipt-note").textContent = source && source.note ? source.note : "";
 
-  const current = el("receipt-current");
-  current.hidden = !row.receipt;
-  if (row.receipt) {
+  // Finns ett verifikat är det filen man kommit för att se. Uppladdning
+  // erbjuds inte förrän det gamla tagits bort — annars är det för lätt att
+  // skriva över ett underlag av misstag.
+  const has = Boolean(row.receipt);
+  const dialog = el("receipt-dialog");
+  dialog.classList.toggle("showing-receipt", has);
+  el("receipt-fetch").hidden = has;
+  el("receipt-upload-step").hidden = has;
+  el("receipt-current").hidden = !has;
+  el("receipt-remove").hidden = !has;
+  el("receipt-upload").hidden = has;
+  el("receipt-open").hidden = !has;
+
+  if (has) {
+    const url = `/api/transactions/${encodeURIComponent(row.id)}/receipt/file`;
+    el("receipt-preview").innerHTML = previewFor(row.receipt.stored_filename, url);
     el("receipt-current-info").innerHTML =
-      `<a href="/api/transactions/${encodeURIComponent(row.id)}/receipt/file" target="_blank"
-          rel="noopener">${escapeHtml(row.receipt.stored_filename)} ↗</a>
+      `<span class="num">${escapeHtml(row.receipt.stored_filename)}</span>
        <br><span class="muted">Originalnamn: ${escapeHtml(row.receipt.original_filename)} ·
        uppladdat ${escapeHtml(row.receipt.uploaded_at.slice(0, 16).replace("T", " "))}</span>`;
+  } else {
+    el("receipt-preview").innerHTML = "";
   }
-  el("receipt-remove").hidden = !row.receipt;
-  el("receipt-upload").textContent = row.receipt ? "Ersätt verifikat" : "Ladda upp";
 
   el("receipt-file").value = "";
   el("receipt-name").textContent = "";
   el("receipt-error").hidden = true;
-  el("receipt-dialog").showModal();
+  dialog.showModal();
+}
+
+/* HEIC renderas inte av webbläsare — där blir det en hänvisning i stället
+   för en trasig ruta. */
+function previewFor(filename, url) {
+  const extension = filename.split(".").pop().toLowerCase();
+  if (extension === "pdf") {
+    return `<iframe src="${url}#toolbar=1&navpanes=0" title="Verifikat"></iframe>`;
+  }
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) {
+    return `<img src="${url}" alt="Verifikat">`;
+  }
+  return `<p class="no-preview muted small">Filtypen .${escapeHtml(extension)} går inte att
+    visa i webbläsaren. Öppna den i ett eget program med knappen nedan.</p>`;
 }
 
 /* Länken är en genväg till leverantörens sida, inget verktyget kan hämta åt
@@ -837,6 +863,13 @@ el("receipt-upload").addEventListener("click", async (event) => {
   }
 });
 
+el("receipt-open").addEventListener("click", (event) => {
+  event.preventDefault();
+  const row = state.receiptTarget;
+  if (!row) return;
+  window.open(`/api/transactions/${encodeURIComponent(row.id)}/receipt/file`, "_blank", "noopener");
+});
+
 el("receipt-remove").addEventListener("click", async (event) => {
   event.preventDefault();
   const row = state.receiptTarget;
@@ -849,8 +882,8 @@ el("receipt-remove").addEventListener("click", async (event) => {
     );
     const index = state.transactions.findIndex((item) => item.id === row.id);
     if (index >= 0) state.transactions[index] = result.transaction;
-    el("receipt-dialog").close();
     render();
+    await openReceiptDialog(result.transaction);
   } catch (error) {
     showReceiptError(error.message);
   }
@@ -914,6 +947,12 @@ el("list").addEventListener("drop", async (event) => {
   const file = fileFrom(event);
   const row = state.transactions.find((item) => item.id === tr.dataset.id);
   if (!file || !row) return;
+  if (row.receipt) {
+    window.alert(
+      `Raden har redan verifikatet ${row.receipt.stored_filename}. Ta bort det först om du vill byta.`
+    );
+    return;
+  }
   try {
     const result = await uploadReceipt(row, file);
     render();

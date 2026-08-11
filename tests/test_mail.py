@@ -117,7 +117,7 @@ class MailTest(unittest.TestCase):
             part for part in message.walk() if part.get_filename()
         ]
         self.assertEqual(len(attachments), 1)
-        self.assertEqual(attachments[0].get_filename(), "2026-03-14_449.00_google-workspace.pdf")
+        self.assertEqual(attachments[0].get_filename(), "2026-03-14_449-00_google-workspace.pdf")
         self.assertEqual(attachments[0].get_content_type(), "application/pdf")
         self.assertEqual(attachments[0].get_payload(decode=True), PDF)
 

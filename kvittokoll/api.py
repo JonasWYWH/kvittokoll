@@ -224,9 +224,13 @@ class Api:
         if transaction is None:
             raise ApiError("Transaktionen finns inte.", status=404)
         if transaction.receipt is not None:
-            # Ett verifikat per rad i version 1 (§7.3). Det gamla flyttas till
-            # papperskorgen istället för att skrivas över.
-            receipts.remove_receipt(self.store, transaction)
+            # Ett verifikat per rad i version 1 (§7.3). Att tyst skriva över
+            # ett befintligt vore lätt att göra av misstag — särskilt när man
+            # drar en fil på fel rad.
+            raise ApiError(
+                "Raden har redan verifikatet {}. Ta bort det först om du vill "
+                "byta.".format(transaction.receipt.stored_filename)
+            )
         try:
             receipt = receipts.store_receipt(self.store, transaction, filename, data)
         except receipts.ReceiptError as error:

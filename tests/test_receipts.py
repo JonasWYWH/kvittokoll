@@ -74,15 +74,21 @@ class FilenameTest(unittest.TestCase):
 
     def test_standardmallen(self):
         stem = receipts.build_stem(transaction(), self.source, "{date}_{amount}_{tag}")
-        self.assertEqual(stem, "2026-03-14_449.00_google-workspace")
+        self.assertEqual(stem, "2026-03-14_449-00_google-workspace")
 
     def test_beloppet_ar_absolut_utan_minustecken(self):
         stem = receipts.build_stem(transaction(amount=-1256.09), self.source, "{amount}")
-        self.assertEqual(stem, "1256.09")
+        self.assertEqual(stem, "1256-09")
+
+    def test_filnamnet_innehaller_ingen_punkt_utom_filandelsen(self):
+        """En punkt mitt i namnet läser som en filändelse, och är dessutom
+        fel decimaltecken på svenska."""
+        stem = receipts.build_stem(transaction(), self.source, "{date}_{amount}_{tag}")
+        self.assertNotIn(".", stem)
 
     def test_utan_kalla_anvands_transaktionstexten(self):
         stem = receipts.build_stem(transaction(), None, "{date}_{amount}_{tag}")
-        self.assertEqual(stem, "2026-03-14_449.00_google-workspace-abc")
+        self.assertEqual(stem, "2026-03-14_449-00_google-workspace-abc")
 
     def test_taggen_utan_kalla_kortas_och_tappar_omljud(self):
         stem = receipts.build_stem(
@@ -126,7 +132,7 @@ class StoreReceiptTest(unittest.TestCase):
 
     def test_filen_kopieras_in_under_manadskatalog(self):
         receipt = receipts.store_receipt(self.store, self.transaction, "invoice_5273829.pdf", PDF)
-        path = self.store.receipts_dir / "2026-03" / "2026-03-14_449.00_google-workspace.pdf"
+        path = self.store.receipts_dir / "2026-03" / "2026-03-14_449-00_google-workspace.pdf"
         self.assertTrue(path.is_file())
         self.assertEqual(path.read_bytes(), PDF)
         self.assertEqual(receipt.stored_filename, path.name)
@@ -138,7 +144,7 @@ class StoreReceiptTest(unittest.TestCase):
     def test_sokvagen_lagras_relativt_datakatalogen(self):
         receipt = receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)
         self.assertEqual(
-            receipt.stored_path, "receipts/2026-03/2026-03-14_449.00_google-workspace.pdf"
+            receipt.stored_path, "receipts/2026-03/2026-03-14_449-00_google-workspace.pdf"
         )
         self.assertTrue(receipts.resolve_path(self.store, receipt.stored_path).is_file())
 
@@ -151,13 +157,13 @@ class StoreReceiptTest(unittest.TestCase):
         self.store._transactions.append(other)
         first = receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
         second = receipts.store_receipt(self.store, other, "b.pdf", PDF)
-        self.assertEqual(first.stored_filename, "2026-03-14_449.00_google-workspace.pdf")
-        self.assertEqual(second.stored_filename, "2026-03-14_449.00_google-workspace-2.pdf")
+        self.assertEqual(first.stored_filename, "2026-03-14_449-00_google-workspace.pdf")
+        self.assertEqual(second.stored_filename, "2026-03-14_449-00_google-workspace-2.pdf")
 
     def test_mallen_kan_bytas_i_installningarna(self):
         self.store.settings["filename_template"] = "{company}-{date}-{amount}"
         receipt = receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)
-        self.assertEqual(receipt.stored_filename, "google-2026-03-14-449.00.pdf")
+        self.assertEqual(receipt.stored_filename, "google-2026-03-14-449-00.pdf")
 
     def test_borttagning_flyttar_till_papperskorgen(self):
         receipt = receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)

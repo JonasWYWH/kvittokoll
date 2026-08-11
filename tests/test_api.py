@@ -497,6 +497,23 @@ class ApiTest(unittest.TestCase):
         with self.assertRaises(ApiError):
             self.api.mark_sent(row["id"])
 
+    def test_verifikat_skrivs_inte_over_tyst(self):
+        """Att dra fel fil på en rad ska inte kunna förstöra ett underlag."""
+        row = self.receipted()
+        with self.assertRaises(ApiError) as caught:
+            self.api.upload_receipt(row["id"], "annan.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        self.assertIn("Ta bort det först", str(caught.exception))
+        self.assertEqual(
+            self.transaction("Google Workspace_ab Dublin")["receipt"]["original_filename"],
+            "faktura.pdf",
+        )
+
+    def test_efter_borttagning_gar_det_att_ladda_upp_igen(self):
+        row = self.receipted()
+        self.api.delete_receipt(row["id"])
+        result = self.api.upload_receipt(row["id"], "ny.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        self.assertEqual(result["receipt"]["original_filename"], "ny.pdf")
+
     def test_borttaget_verifikat_nollstaller_skickat(self):
         row = self.receipted()
         self.api.mark_sent(row["id"])

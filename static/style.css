@@ -491,9 +491,26 @@ button.danger { color: var(--missing); }
 .dropzone input { border: none; background: none; padding: 0; }
 .dropzone p { margin: 8px 0 0; }
 
-#receipt-current h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--muted); margin: 18px 0 4px; }
-#receipt-current p { margin: 0; }
+#receipt-current p { margin: 8px 0 0; }
+
+.receipt-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--neutral-bg);
+  height: min(62vh, 620px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.receipt-preview iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.receipt-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.receipt-preview .no-preview { padding: 28px; text-align: center; }
+
+/* Bredare fönster när verifikatet visas — annars blir förhandsvisningen
+   för smal för att vara till nytta. */
+dialog#receipt-dialog.showing-receipt { max-width: 900px; }
 
 tr.drop-target td { background: var(--accent-soft); }
 

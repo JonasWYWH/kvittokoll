@@ -239,7 +239,7 @@
         <p id="receipt-note" class="muted small"></p>
       </div>
 
-      <div class="fetch-step">
+      <div class="fetch-step" id="receipt-upload-step">
         <p class="small"><strong>2.</strong> Ladda upp filen här.</p>
         <div id="dropzone" class="dropzone">
           <input type="file" id="receipt-file" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif">
@@ -249,7 +249,7 @@
       </div>
 
       <div id="receipt-current" hidden>
-        <h3>Uppladdat verifikat</h3>
+        <div id="receipt-preview" class="receipt-preview"></div>
         <p id="receipt-current-info" class="small"></p>
       </div>
 
@@ -259,6 +259,7 @@
         <button value="cancel" class="link">Stäng</button>
         <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort verifikatet</button>
         <button value="default" id="receipt-upload" class="primary">Ladda upp</button>
+        <button value="default" id="receipt-open" class="primary" hidden>Öppna i ny flik ↗</button>
       </menu>
     </form>
   </dialog>

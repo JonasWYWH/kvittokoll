@@ -212,11 +212,14 @@ originalnamnet sparas.
 ### Namnstandard
 
 ```
-{date}_{amount}_{tag}.{ext}     →  2026-03-14_449.00_google-workspace.pdf
+{date}_{amount}_{tag}.{ext}     →  2026-03-14_449-00_google-workspace.pdf
 ```
 
-Beloppet är absolut, med två decimaler och punkt — minustecken fungerar dåligt
-i filnamn på vissa system. `{tag}` kommer från källans `filename_tag`; saknas
+Beloppet skrivs med bindestreck som decimaltecken och utan minustecken. Punkt
+duger inte — den läses som en filändelse och är dessutom fel decimaltecken på
+svenska. Komma duger inte heller: det bråkar med CSV och skalkommandon.
+Minustecknet utelämnas eftersom det fungerar dåligt i filnamn på vissa system,
+och tecknet framgår ändå av transaktionen. `{tag}` kommer från källans `filename_tag`; saknas
 källa används transaktionstexten, gemener, bindestreck, max 40 tecken, utan
 å/ä/ö. Vid namnkollision läggs `-2`, `-3` till.
 
@@ -233,8 +236,10 @@ inloggning är att man inte var inloggad och fick en HTML-sida som heter
 `faktura.pdf`. Den avvisas med besked om vad som hänt, i stället för att
 upptäckas av bokföraren en månad senare.
 
-Ett verifikat per transaktion i version 1. Laddar du upp ett nytt flyttas det
-gamla till papperskorgen. Samma sak vid **Ta bort verifikatet** — filer raderas
+Ett verifikat per transaktion i version 1. Finns redan ett visas det i stället
+för uppladdningsrutan — PDF:er och bilder renderas direkt i fönstret. För att
+byta måste du först ta bort det befintliga; att skriva över tyst vore för lätt
+att göra av misstag, särskilt när man drar en fil på fel rad. Filer raderas
 aldrig, de flyttas till `data/trash/`.
 
 ## Utskick
