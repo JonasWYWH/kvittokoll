@@ -205,6 +205,11 @@ inloggning. Källans `receipt_url` är därför en genväg, inte en nedladdning:
 öppnas i en ny flik så att du slipper leta upp sidan varje gång, och källans
 anteckning beskriver sista biten av vägen dit.
 
+När du öppnar filväljaren lägger sig systemets fönster mitt på skärmen och
+täcker rutan. Därför tänds en rad högst upp — *Letar efter: Kvitto från Google
+CLOUD · 7,17 kr · 2026-05-04* — som blir kvar tills du valt en fil. Annars får
+man stänga allt för att komma ihåg vilket kvitto man letade efter.
+
 Saknar källan länk går den att lägga till direkt i uppladdningsrutan, utan att
 gå omvägen via Källor. Den sparas på källan och gäller därmed alla dess köp.
 Skriver du en adress utan `https://` läggs det på — annars blir länken relativ

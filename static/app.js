@@ -752,6 +752,12 @@ function openReceiptDialog(row) {
   el("receipt-file").value = "";
   el("receipt-name").textContent = "";
   el("receipt-error").hidden = true;
+  el("receipt-hint").hidden = true;
+  el("receipt-hint").innerHTML =
+    `<span class="muted">Letar efter:</span> Kvitto från ${
+      escapeHtml(source ? source.name : row.description)} ·
+     <span class="num">${formatAmount(Math.abs(row.amount))}</span> kr ·
+     <span class="num">${row.date}</span>`;
   dialog.showModal();
 }
 
@@ -847,9 +853,18 @@ async function uploadReceipt(row, file) {
   return result;
 }
 
+el("receipt-file").addEventListener("click", () => {
+  el("receipt-hint").hidden = false;
+});
+
 el("receipt-file").addEventListener("change", () => {
   const file = el("receipt-file").files[0];
   el("receipt-name").textContent = file ? `Vald fil: ${file.name}` : "";
+  el("receipt-hint").hidden = true;
+});
+
+el("receipt-dialog").addEventListener("close", () => {
+  el("receipt-hint").hidden = true;
 });
 
 el("receipt-upload").addEventListener("click", async (event) => {

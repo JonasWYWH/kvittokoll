@@ -494,6 +494,31 @@ button.danger { color: var(--missing); }
   max-width: 46ch;
 }
 
+/* Systemets filväljare lägger sig mitt på skärmen och täcker rutan. Den här
+   raden ligger högt upp och kvar, så man slipper stänga allt för att komma
+   ihåg vilket kvitto man letar efter. Den måste ligga i dialogen — allt
+   utanför hamnar under dialogens bakgrund och dimmas. */
+.picker-hint {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 9px 18px;
+  max-width: min(92vw, 720px);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.picker-hint .muted { margin-right: 6px; }
+
 .fetch-step { margin: 14px 0; }
 .link-edit { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .link-edit input { flex: 1 1 auto; min-width: 0; }
