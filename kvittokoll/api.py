@@ -21,7 +21,14 @@ from .models import (
     Transaction,
 )
 from .normalize import normalize_text, slugify
-from .sources import MODE_LABELS, compile_pattern, match_source, new_source, suggest_pattern
+from .sources import (
+    MODE_LABELS,
+    compile_pattern,
+    explain_match,
+    match_source,
+    new_source,
+    suggest_pattern,
+)
 from .storage import Store
 
 # Fält i settings.json som webbgränssnittet får läsa och skriva.
@@ -132,6 +139,7 @@ class Api:
                 raise ApiError("Okänd källa: {}".format(source_id))
             transaction.source_id = source_id
             transaction.ambiguous_sources = []
+            transaction.source_manual = source_id is not None
             source_changed = True
 
         transaction.refresh_status()
@@ -188,6 +196,7 @@ class Api:
                     raise ApiError("Okänd källa: {}".format(source_id))
                 transaction.source_id = source_id
                 transaction.ambiguous_sources = []
+                transaction.source_manual = source_id is not None
             transaction.refresh_status()
             updated.append(transaction.to_dict())
         if updated:
@@ -327,7 +336,10 @@ class Api:
         sources = self.store.sources()
         sources.append(source)
         self.store.save_sources(sources)
-        return {"source": self._source_payload(source)}
+        # En regel som inte kopplar några rader är bara en text. Matchningen
+        # körs direkt i stället för att vänta på nästa import.
+        coupled = self._rematch()
+        return {"source": self._source_payload(source), "coupled": coupled}
 
     def test_pattern(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Prova ett mönster mot en rad och mot hela listan.
@@ -379,7 +391,8 @@ class Api:
             source.match_patterns = self._clean_patterns(data["match_patterns"])
 
         self.store.save_sources()
-        return {"source": self._source_payload(source)}
+        coupled = self._rematch()
+        return {"source": self._source_payload(source), "coupled": coupled}
 
     def delete_source(self, source_id: str) -> Dict[str, Any]:
         """Ta bort en källa och koppla loss raderna som pekade på den.
@@ -396,6 +409,7 @@ class Api:
             if transaction.source_id == source_id:
                 transaction.source_id = None
                 transaction.ambiguous_sources = []
+                transaction.source_manual = False
                 uncoupled += 1
         if uncoupled:
             self.store.save_transactions()
@@ -426,25 +440,53 @@ class Api:
         )
         return data
 
-    def rematch_sources(self) -> Dict[str, Any]:
-        """Kör om källmatchningen på alla okopplade rader.
+    def _rematch(self) -> int:
+        """Kör källmatchningen på alla okopplade rader. Returnerar antalet.
 
-        Behövs när användaren lagt till en källa efter en import. Rader som
-        redan har en källa rörs inte — koppling är alltid användarens beslut.
+        Rader som redan har en källa rörs aldrig — koppling är användarens
+        beslut, och en ny källa får inte rycka rader från en befintlig.
         """
         sources = self.store.sources()
         changed = 0
         for transaction in self.store.transactions():
-            if transaction.source_id:
+            if transaction.source_manual:
                 continue
             source_id, ambiguous = match_source(transaction.description, sources)
-            if source_id:
+            if source_id and source_id != transaction.source_id:
                 transaction.source_id = source_id
                 transaction.ambiguous_sources = []
                 changed += 1
-            elif ambiguous != transaction.ambiguous_sources:
-                transaction.ambiguous_sources = ambiguous
-                changed += 1
+            elif not source_id and not transaction.source_id:
+                # En koppling tas aldrig bort av matchningen. Att en regel
+                # ändrats får inte tömma en rad som redan hittat hem.
+                if ambiguous != transaction.ambiguous_sources:
+                    transaction.ambiguous_sources = ambiguous
+                    changed += 1
         if changed:
             self.store.save_transactions()
-        return {"changed": changed, "transactions": [t.to_dict() for t in self._sorted_transactions()]}
+        return changed
+
+    def rematch_sources(self) -> Dict[str, Any]:
+        changed = self._rematch()
+        return {
+            "changed": changed,
+            "transactions": [t.to_dict() for t in self._sorted_transactions()],
+        }
+
+    def explain_source_match(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Matchar den här källan redan den här texten, och i så fall hur?
+
+        Används av kopplingsdialogen för att slippa föreslå ett mönster som
+        inte behövs. En källa som redan träffar raden ska inte få ännu en
+        regel bara för att man kopplar.
+        """
+        description = str(data.get("description") or "")
+        source = self.store.source_by_id(str(data.get("source_id") or ""))
+        if source is None:
+            raise ApiError("Källan finns inte.", status=404)
+        explanation = explain_match(description, source)
+        return {
+            "matches": explanation is not None,
+            "explanation": explanation,
+            "patterns": [p.to_json() for p in source.match_patterns],
+        }

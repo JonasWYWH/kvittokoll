@@ -389,7 +389,7 @@ el("list").addEventListener("click", async (event) => {
       if (changes.apply_to_source) await load();
       else render();
     } else if (button.dataset.action === "source") {
-      openSourceDialog(row);
+      await openSourceDialog(row);
     } else if (button.dataset.action === "receipt") {
       openReceiptDialog(row);
     } else if (button.dataset.action === "send") {
@@ -599,7 +599,7 @@ el("sources-list").addEventListener("click", async (event) => {
   } else if (action === "save") {
     collectDraft(card, id);
     try {
-      await request(`/api/sources/${encodeURIComponent(id)}`, {
+      const result = await request(`/api/sources/${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(state.sourceDraft),
@@ -607,7 +607,9 @@ el("sources-list").addEventListener("click", async (event) => {
       state.editingSource = null;
       await load();
       showView("sources");
-      message(`Källan sparad.`);
+      message(result.coupled
+        ? `Källan sparad. ${result.coupled} rader kopplades till den.`
+        : "Källan sparad. Inga nya rader matchade.");
     } catch (error) {
       const box = card.querySelector("[data-source-error]");
       box.hidden = false;
@@ -1024,7 +1026,7 @@ el("send-dialog").addEventListener("close", () => {
 
 /* ---------- källdialog ---------- */
 
-function openSourceDialog(row) {
+async function openSourceDialog(row) {
   state.sourceTarget = row;
   el("source-context").innerHTML =
     `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
@@ -1049,9 +1051,57 @@ function openSourceDialog(row) {
   el("source-pattern-result").className = "muted small";
 
   toggleNewSourceFields();
+  el("source-dialog").showModal();
+  await describeSelectedSource();
+}
+
+/* Visar vilka regler den valda källan redan har, och kryssar ur förslaget om
+   källan redan träffar raden. Utan det här lägger varje koppling till ännu en
+   regel — "Hyra Juni", "Hyra Juli" — trots att "börjar med Hyra" täcker dem. */
+async function describeSelectedSource() {
+  const box = el("source-existing");
+  const sourceId = el("source-select").value;
+  const row = state.sourceTarget;
+
+  if (!row || !sourceId || sourceId === "__new__") {
+    box.hidden = true;
+    el("source-learn").checked = sourceId === "__new__";
+    togglePatternFields();
+    testPattern();
+    return;
+  }
+
+  let info;
+  try {
+    info = await request("/api/sources/explain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_id: sourceId, description: row.description }),
+    });
+  } catch (error) {
+    box.hidden = true;
+    return;
+  }
+
+  const chips = (info.patterns || []).map((raw) => {
+    const pattern = typeof raw === "string" ? { pattern: raw, mode: "contains" } : raw;
+    const label = (state.matchModes.find((m) => m.id === pattern.mode) || {}).label || pattern.mode;
+    return `<span class="pattern"><span class="pattern-mode">${escapeHtml(label)}</span>
+      ${escapeHtml(pattern.pattern)}</span>`;
+  });
+
+  box.hidden = false;
+  box.innerHTML = info.matches
+    ? `<span class="already">Källan matchar redan den här raden — ${escapeHtml(info.explanation)}.</span>
+       <div class="patterns">${chips.join("")}</div>`
+    : `<span class="muted">Källans nuvarande regler träffar inte den här raden.</span>
+       <div class="patterns">${chips.join("") ||
+         '<span class="muted small">Inga regler ännu.</span>'}</div>`;
+
+  // Föreslå bara ett nytt mönster när det faktiskt behövs.
+  el("source-learn").checked = !info.matches;
   togglePatternFields();
   testPattern();
-  el("source-dialog").showModal();
 }
 
 function toggleNewSourceFields() {
@@ -1107,7 +1157,10 @@ function testPattern() {
   }, 220);
 }
 
-el("source-select").addEventListener("change", toggleNewSourceFields);
+el("source-select").addEventListener("change", async () => {
+  toggleNewSourceFields();
+  await describeSelectedSource();
+});
 el("source-learn").addEventListener("change", () => {
   togglePatternFields();
   testPattern();
@@ -1133,7 +1186,7 @@ el("source-save").addEventListener("click", async (event) => {
       });
       sourceId = created.source.id;
     }
-    await patchTransaction(row.id, {
+    const result = await patchTransaction(row.id, {
       source_id: sourceId || null,
       add_match_pattern: el("source-learn").checked && Boolean(sourceId),
       match_pattern: el("source-pattern").value.trim(),
@@ -1141,6 +1194,7 @@ el("source-save").addEventListener("click", async (event) => {
     });
     el("source-dialog").close();
     await load();
+    if (result.coupled) flash(`Regeln kopplade ${result.coupled} rader till.`);
   } catch (error) {
     el("source-error").hidden = false;
     el("source-error").textContent = error.message;

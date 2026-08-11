@@ -289,10 +289,19 @@ class ApiTest(unittest.TestCase):
         with self.assertRaises(ApiError):
             self.api.update_transaction(row["id"], {"source_id": "finns-inte"})
 
-    def test_rematch_kopplar_rader_efter_ny_kalla(self):
-        self.api.create_source({"name": "Netlify", "match_patterns": ["NETLIFY"]})
-        result = self.api.rematch_sources()
-        self.assertEqual(result["changed"], 1)
+    def test_ny_kalla_kopplar_raderna_direkt(self):
+        """En regel som inte kopplar något är bara en text. Matchningen ska
+        inte vänta på att användaren hittar en knapp."""
+        result = self.api.create_source({"name": "Netlify", "match_patterns": ["NETLIFY"]})
+        self.assertEqual(result["coupled"], 1)
+        self.assertEqual(
+            self.transaction("NETLIFY               SAN FRANCISCO")["source_id"], "netlify"
+        )
+
+    def test_redigerad_kalla_kopplar_raderna_direkt(self):
+        created = self.api.create_source({"name": "Netlify"})["source"]
+        result = self.api.update_source(created["id"], {"match_patterns": ["NETLIFY"]})
+        self.assertEqual(result["coupled"], 1)
         self.assertEqual(
             self.transaction("NETLIFY               SAN FRANCISCO")["source_id"], "netlify"
         )
@@ -310,12 +319,66 @@ class ApiTest(unittest.TestCase):
         self.api.rematch_sources()
         self.assertEqual(self.transaction("Google Workspace_ab Dublin")["source_id"], "netlify")
 
-    def test_rematch_valjer_langsta_monstret_for_okopplade_rader(self):
+    def test_battre_regel_rattar_en_automatisk_koppling(self):
+        """En automatisk koppling är motorns gissning. Dyker en mer specifik
+        källa upp senare ska den ta över."""
         row = self.transaction("NETLIFY               SAN FRANCISCO")
         self.api.create_source({"name": "Kort", "match_patterns": ["NETLIFY"]})
+        self.assertEqual(self.transaction(row["description"])["source_id"], "kort")
+
         self.api.create_source({"name": "Lang", "match_patterns": ["NETLIFY SAN FRANCISCO"]})
-        self.api.rematch_sources()
         self.assertEqual(self.transaction(row["description"])["source_id"], "lang")
+
+    def test_battre_regel_rattar_inte_en_manuell_koppling(self):
+        row = self.transaction("NETLIFY               SAN FRANCISCO")
+        manuell = self.api.create_source({"name": "Manuell"})["source"]
+        self.api.update_transaction(row["id"], {"source_id": manuell["id"]})
+
+        self.api.create_source({"name": "Lang", "match_patterns": ["NETLIFY SAN FRANCISCO"]})
+        self.assertEqual(self.transaction(row["description"])["source_id"], "manuell")
+
+    def test_matchningen_tar_aldrig_bort_en_koppling(self):
+        """Att en regel ändras får inte tömma en rad som redan hittat hem."""
+        created = self.api.create_source({"name": "Netlify", "match_patterns": ["NETLIFY"]})["source"]
+        self.api.update_source(created["id"], {"match_patterns": ["FINNS-INTE"]})
+        self.assertEqual(
+            self.transaction("NETLIFY               SAN FRANCISCO")["source_id"], "netlify"
+        )
+
+    def test_kopplingen_markeras_som_manuell_bara_vid_manuellt_val(self):
+        auto = self.transaction("Google Workspace_ab Dublin")
+        self.assertFalse(auto["source_manual"])
+
+        row = self.transaction("Utdelning")
+        created = self.api.create_source({"name": "Eget"})["source"]
+        self.api.update_transaction(row["id"], {"source_id": created["id"]})
+        self.assertTrue(self.transaction("Utdelning")["source_manual"])
+
+    # -- förklaring av matchning ------------------------------------------
+
+    def test_forklaring_sager_varfor_kallan_matchar(self):
+        created = self.api.create_source({
+            "name": "Hyra", "match_patterns": [{"pattern": "NETLIFY", "mode": "starts_with"}]
+        })["source"]
+        result = self.api.explain_source_match({
+            "source_id": created["id"], "description": "NETLIFY               SAN FRANCISCO"
+        })
+        self.assertTrue(result["matches"])
+        self.assertIn("börjar med", result["explanation"])
+
+    def test_forklaring_sager_nar_kallan_inte_matchar(self):
+        created = self.api.create_source({"name": "Hyra", "match_patterns": ["HYRA"]})["source"]
+        result = self.api.explain_source_match({
+            "source_id": created["id"], "description": "NETLIFY SAN FRANCISCO"
+        })
+        self.assertFalse(result["matches"])
+        self.assertIsNone(result["explanation"])
+        self.assertEqual(result["patterns"], ["HYRA"])
+
+    def test_forklaring_av_okand_kalla_ger_404(self):
+        with self.assertRaises(ApiError) as caught:
+            self.api.explain_source_match({"source_id": "finns-inte", "description": "x"})
+        self.assertEqual(caught.exception.status, 404)
 
     # -- massändring ------------------------------------------------------
 

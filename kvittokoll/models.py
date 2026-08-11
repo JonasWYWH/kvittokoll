@@ -124,6 +124,10 @@ class Transaction:
     # Sätts när flera källor matchar lika starkt. Raden kopplas då inte
     # automatiskt utan väntar på manuell koppling (§4.3).
     ambiguous_sources: List[str] = field(default_factory=list)
+    # Kopplade användaren raden själv? En automatisk koppling är motorns
+    # gissning och får rättas när en bättre regel dyker upp. En manuell är
+    # ett beslut och rörs aldrig.
+    source_manual: bool = False
     requires_receipt: bool = True
     receipt: Optional[Receipt] = None
     sent_at: Optional[str] = None
@@ -163,6 +167,7 @@ class Transaction:
             balance=_as_float(data.get("balance")),
             source_id=data.get("source_id") or None,
             ambiguous_sources=list(data.get("ambiguous_sources") or []),
+            source_manual=_as_bool(data.get("source_manual"), False),
             requires_receipt=_as_bool(data.get("requires_receipt"), True),
             receipt=Receipt.from_dict(data.get("receipt")),
             sent_at=data.get("sent_at") or None,
@@ -186,6 +191,7 @@ class Transaction:
             "balance": self.balance,
             "source_id": self.source_id,
             "ambiguous_sources": self.ambiguous_sources,
+            "source_manual": self.source_manual,
             "requires_receipt": self.requires_receipt,
             "receipt": self.receipt.to_dict() if self.receipt else None,
             "sent_at": self.sent_at,

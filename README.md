@@ -149,9 +149,20 @@ Längre mönster har företräde. Är två lika långa vinner det förankrade �
 `börjar med HYRA` är mer specifikt än `innehåller HYRA`. Är även det lika
 kopplas raden inte automatiskt, utan flaggas som tvetydig.
 
-När du kopplar en rad kan du samtidigt lägga till ett mönster på källan.
-Dialogen provar mönstret medan du skriver och visar hur många av dina
-transaktioner det träffar, så att valet av läge inte blir en gissning.
+När du kopplar en rad visar dialogen källans nuvarande regler, och föreslår ett
+nytt mönster bara om ingen av dem redan träffar raden. Annars samlar källan på
+sig `Hyra juni`, `Hyra juli`, `Hyra augusti` — trots att `börjar med Hyra`
+täcker dem alla. Provningen körs medan du skriver och visar hur många av dina
+transaktioner mönstret träffar, så att valet av läge inte blir en gissning.
+
+Att spara en källa kör matchningen direkt. En regel som inte kopplar några
+rader är bara en text.
+
+Rader som matchats automatiskt kan rättas av en bättre regel: lägger du till en
+mer specifik källa senare tar den över. Rader du kopplat **själv** rörs aldrig —
+matchningen skiljer på sin egen gissning och ditt beslut. En koppling tas heller
+aldrig bort av matchningen; att en regel ändras får inte tömma en rad som redan
+hittat hem.
 
 ## Filer
 
