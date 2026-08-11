@@ -93,7 +93,7 @@ class StatusTest(unittest.TestCase):
         transaction = _transaction("a")
         self.assertEqual(transaction.compute_status(), "missing")
 
-        transaction.receipt = Receipt(original_filename="f.pdf")
+        transaction.receipts = [Receipt(original_filename="f.pdf")]
         self.assertEqual(transaction.compute_status(), "has_receipt")
 
         transaction.sent_at = "2026-08-11T10:00:00+02:00"
@@ -113,10 +113,10 @@ class StatusTest(unittest.TestCase):
 
     def test_rundtur_genom_json_bevarar_faltena(self):
         transaction = _transaction("a")
-        transaction.receipt = Receipt("orig.pdf", "ny.pdf", "receipts/2026-08/ny.pdf", "nu")
+        transaction.receipts = [Receipt("orig.pdf", "ny.pdf", "receipts/2026-08/ny.pdf", "nu")]
         transaction.note = "kolla momsen"
         restored = Transaction.from_dict(json.loads(json.dumps(transaction.to_dict())))
-        self.assertEqual(restored.receipt.original_filename, "orig.pdf")
+        self.assertEqual(restored.receipts[0].original_filename, "orig.pdf")
         self.assertEqual(restored.note, "kolla momsen")
         self.assertEqual(restored.base_key, transaction.base_key)
 

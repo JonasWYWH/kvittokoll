@@ -18,6 +18,7 @@ const state = {
   sourceTarget: null,
   view: "list",
   receiptTarget: null,
+  receiptShown: null,
   sendTarget: null,
   sendPreview: null,
   emailCreated: false,
@@ -301,11 +302,15 @@ function receiptCell(row) {
   if (!row.requires_receipt) {
     return `<span class="badge not_required">${STATUS_LABEL.not_required}</span>`;
   }
-  if (!row.receipt) {
+  const files = row.receipts || [];
+  if (!files.length) {
     return `<button class="tiny" data-action="receipt">Ladda upp</button>`;
   }
+  const label = files.length > 1
+    ? `<span class="num">${files.length}</span> verifikat`
+    : STATUS_LABEL[row.status];
   return `<button class="badge ${row.status}" data-action="receipt"
-    title="${escapeHtml(row.receipt.stored_filename)}">${STATUS_LABEL[row.status]}</button>`;
+    title="${escapeHtml(files.map((r) => r.stored_filename).join(", "))}">${label}</button>`;
 }
 
 /* Skickat-kolumnen bär utskicket. Saknas verifikat går det inte att skicka,
@@ -317,7 +322,7 @@ function sentCell(row) {
       title="Skickat ${escapeHtml(row.sent_at)}"><span class="num">${
         row.sent_at.slice(0, 10)}</span></button>`;
   }
-  if (!row.receipt) return `<span class="cell-hint">Väntar på verifikat</span>`;
+  if (!(row.receipts || []).length) return `<span class="cell-hint">Väntar på verifikat</span>`;
   return `<button class="tiny" data-action="send">Skicka</button>`;
 }
 
@@ -728,7 +733,9 @@ function openReceiptDialog(row) {
   // Finns ett verifikat är det filen man kommit för att se. Uppladdning
   // erbjuds inte förrän det gamla tagits bort — annars är det för lätt att
   // skriva över ett underlag av misstag.
-  const has = Boolean(row.receipt);
+  const files = row.receipts || [];
+  const has = files.length > 0;
+  state.receiptShown = has ? files[0].stored_filename : null;
   const dialog = el("receipt-dialog");
   dialog.classList.toggle("showing-receipt", has);
   el("receipt-fetch").hidden = has;
@@ -737,17 +744,8 @@ function openReceiptDialog(row) {
   el("receipt-remove").hidden = !has;
   el("receipt-upload").hidden = has;
   el("receipt-open").hidden = !has;
-
-  if (has) {
-    const url = `/api/transactions/${encodeURIComponent(row.id)}/receipt/file`;
-    el("receipt-preview").innerHTML = previewFor(row.receipt.stored_filename, url);
-    el("receipt-current-info").innerHTML =
-      `<span class="num">${escapeHtml(row.receipt.stored_filename)}</span>
-       <br><span class="muted">Originalnamn: ${escapeHtml(row.receipt.original_filename)} ·
-       uppladdat ${escapeHtml(row.receipt.uploaded_at.slice(0, 16).replace("T", " "))}</span>`;
-  } else {
-    el("receipt-preview").innerHTML = "";
-  }
+  el("receipt-add-more").hidden = !has;
+  renderReceiptFiles(row);
 
   el("receipt-file").value = "";
   el("receipt-name").textContent = "";
@@ -760,6 +758,53 @@ function openReceiptDialog(row) {
      <span class="num">${row.date}</span>`;
   dialog.showModal();
 }
+
+function receiptUrl(row, filename) {
+  return `/api/transactions/${encodeURIComponent(row.id)}/receipts/${
+    encodeURIComponent(filename)}/file`;
+}
+
+function renderReceiptFiles(row) {
+  const files = row.receipts || [];
+  if (!files.length) {
+    el("receipt-tabs").innerHTML = "";
+    el("receipt-preview").innerHTML = "";
+    el("receipt-current-info").innerHTML = "";
+    return;
+  }
+  const shown = files.find((r) => r.stored_filename === state.receiptShown) || files[0];
+  state.receiptShown = shown.stored_filename;
+
+  // Flikar bara när det finns något att välja mellan.
+  el("receipt-tabs").innerHTML = files.length > 1
+    ? files.map((r) => `<button class="receipt-tab${
+        r.stored_filename === shown.stored_filename ? " on" : ""}"
+        data-file="${escapeHtml(r.stored_filename)}">${escapeHtml(r.stored_filename)}</button>`).join("")
+    : "";
+
+  el("receipt-preview").innerHTML = previewFor(shown.stored_filename, receiptUrl(row, shown.stored_filename));
+  el("receipt-current-info").innerHTML =
+    `<span class="num">${escapeHtml(shown.stored_filename)}</span>
+     <br><span class="muted">Originalnamn: ${escapeHtml(shown.original_filename)} ·
+     uppladdat ${escapeHtml(shown.uploaded_at.slice(0, 16).replace("T", " "))}${
+       files.length > 1 ? ` · ${files.length} filer på raden` : ""}</span>`;
+}
+
+el("receipt-tabs").addEventListener("click", (event) => {
+  const tab = event.target.closest(".receipt-tab");
+  if (!tab || !state.receiptTarget) return;
+  event.preventDefault();
+  state.receiptShown = tab.dataset.file;
+  renderReceiptFiles(state.receiptTarget);
+});
+
+el("receipt-add-more").addEventListener("click", (event) => {
+  event.preventDefault();
+  el("receipt-upload-step").hidden = false;
+  el("receipt-upload").hidden = false;
+  el("receipt-add-more").hidden = true;
+  el("receipt-file").focus();
+});
 
 /* HEIC renderas inte av webbläsare — där blir det en hänvisning i stället
    för en trasig ruta. */
@@ -841,11 +886,11 @@ el("receipt-link-input").addEventListener("keydown", (event) => {
   }
 });
 
-async function uploadReceipt(row, file) {
+async function uploadReceipts(row, files) {
   const form = new FormData();
-  form.append("file", file);
+  for (const file of files) form.append("file", file);
   const result = await request(
-    `/api/transactions/${encodeURIComponent(row.id)}/receipt`,
+    `/api/transactions/${encodeURIComponent(row.id)}/receipts`,
     { method: "POST", body: form }
   );
   const index = state.transactions.findIndex((item) => item.id === row.id);
@@ -853,13 +898,22 @@ async function uploadReceipt(row, file) {
   return result;
 }
 
+function addedMessage(result) {
+  const names = result.added.map((r) => r.stored_filename);
+  return names.length === 1
+    ? `Sparat som ${names[0]}`
+    : `${names.length} filer sparade: ${names.join(", ")}`;
+}
+
 el("receipt-file").addEventListener("click", () => {
   el("receipt-hint").hidden = false;
 });
 
 el("receipt-file").addEventListener("change", () => {
-  const file = el("receipt-file").files[0];
-  el("receipt-name").textContent = file ? `Vald fil: ${file.name}` : "";
+  const files = [...el("receipt-file").files];
+  el("receipt-name").textContent = files.length
+    ? (files.length === 1 ? `Vald fil: ${files[0].name}` : `${files.length} filer valda`)
+    : "";
   el("receipt-hint").hidden = true;
 });
 
@@ -870,19 +924,17 @@ el("receipt-dialog").addEventListener("close", () => {
 el("receipt-upload").addEventListener("click", async (event) => {
   event.preventDefault();
   const row = state.receiptTarget;
-  const file = el("receipt-file").files[0];
+  const files = [...el("receipt-file").files];
   if (!row) return;
-  if (!file) {
+  if (!files.length) {
     showReceiptError("Välj en fil först.");
     return;
   }
   try {
-    const result = await uploadReceipt(row, file);
-    el("receipt-dialog").close();
+    const result = await uploadReceipts(row, files);
     render();
-    window.setTimeout(
-      () => flash(`Sparat som ${result.receipt.stored_filename}`), 0
-    );
+    flash(addedMessage(result));
+    await openReceiptDialog(result.transaction);
   } catch (error) {
     showReceiptError(error.message);
   }
@@ -891,18 +943,20 @@ el("receipt-upload").addEventListener("click", async (event) => {
 el("receipt-open").addEventListener("click", (event) => {
   event.preventDefault();
   const row = state.receiptTarget;
-  if (!row) return;
-  window.open(`/api/transactions/${encodeURIComponent(row.id)}/receipt/file`, "_blank", "noopener");
+  if (!row || !state.receiptShown) return;
+  window.open(receiptUrl(row, state.receiptShown), "_blank", "noopener");
 });
 
 el("receipt-remove").addEventListener("click", async (event) => {
   event.preventDefault();
   const row = state.receiptTarget;
   if (!row) return;
-  if (!window.confirm("Ta bort verifikatet? Filen flyttas till papperskorgen.")) return;
+  const filename = state.receiptShown;
+  if (!filename) return;
+  if (!window.confirm(`Ta bort ${filename}? Filen flyttas till papperskorgen.`)) return;
   try {
     const result = await request(
-      `/api/transactions/${encodeURIComponent(row.id)}/receipt`,
+      `/api/transactions/${encodeURIComponent(row.id)}/receipts/${encodeURIComponent(filename)}`,
       { method: "DELETE" }
     );
     const index = state.transactions.findIndex((item) => item.id === row.id);
@@ -928,9 +982,9 @@ function flash(text) {
 }
 
 /* Drag-and-drop, både i modalen och direkt på raden (§7.1). */
-function fileFrom(event) {
+function filesFrom(event) {
   const items = event.dataTransfer && event.dataTransfer.files;
-  return items && items.length ? items[0] : null;
+  return items && items.length ? [...items] : [];
 }
 
 const dropzone = el("dropzone");
@@ -942,13 +996,13 @@ dropzone.addEventListener("dragleave", () => dropzone.classList.remove("over"));
 dropzone.addEventListener("drop", async (event) => {
   event.preventDefault();
   dropzone.classList.remove("over");
-  const file = fileFrom(event);
-  if (!file || !state.receiptTarget) return;
+  const files = filesFrom(event);
+  if (!files.length || !state.receiptTarget) return;
   try {
-    const result = await uploadReceipt(state.receiptTarget, file);
-    el("receipt-dialog").close();
+    const result = await uploadReceipts(state.receiptTarget, files);
     render();
-    flash(`Sparat som ${result.receipt.stored_filename}`);
+    flash(addedMessage(result));
+    await openReceiptDialog(result.transaction);
   } catch (error) {
     showReceiptError(error.message);
   }
@@ -969,19 +1023,13 @@ el("list").addEventListener("drop", async (event) => {
   if (!tr) return;
   event.preventDefault();
   tr.classList.remove("drop-target");
-  const file = fileFrom(event);
+  const files = filesFrom(event);
   const row = state.transactions.find((item) => item.id === tr.dataset.id);
-  if (!file || !row) return;
-  if (row.receipt) {
-    window.alert(
-      `Raden har redan verifikatet ${row.receipt.stored_filename}. Ta bort det först om du vill byta.`
-    );
-    return;
-  }
+  if (!files.length || !row) return;
   try {
-    const result = await uploadReceipt(row, file);
+    const result = await uploadReceipts(row, files);
     render();
-    flash(`Sparat som ${result.receipt.stored_filename}`);
+    flash(addedMessage(result));
   } catch (error) {
     window.alert(error.message);
   }
@@ -1080,7 +1128,9 @@ async function refreshSendDialog() {
   el("send-to").textContent = details.to || "ingen mottagare inställd";
   el("send-from").textContent = details.from || "ditt konto i mejlklienten";
   el("send-subject").textContent = details.subject;
-  el("send-attachment").textContent = details.attachment || "saknas";
+  el("send-attachment").textContent = (details.attachments || []).length
+    ? details.attachments.join(", ")
+    : "saknas";
   el("send-body").textContent = details.body;
 
   el("send-create").disabled = !details.can_send;

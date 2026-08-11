@@ -54,11 +54,13 @@ def build_routes(api: Api) -> List[Route]:
             _unquote(m.group("id"))
         )),
         Route("PATCH", r"/api/settings", lambda req, m: api.update_settings(req.json())),
-        Route("POST", r"/api/transactions/(?P<id>.+)/receipt", _upload_receipt(api)),
-        Route("DELETE", r"/api/transactions/(?P<id>.+)/receipt", lambda req, m: api.delete_receipt(
-            _unquote(m.group("id"))
-        )),
-        Route("GET", r"/api/transactions/(?P<id>.+)/receipt/file", _receipt_file(api)),
+        Route("POST", r"/api/transactions/(?P<id>.+)/receipts", _upload_receipts(api)),
+        Route(
+            "DELETE",
+            r"/api/transactions/(?P<id>.+)/receipts/(?P<file>[^/]+)",
+            lambda req, m: api.delete_receipt(_unquote(m.group("id")), _unquote(m.group("file"))),
+        ),
+        Route("GET", r"/api/transactions/(?P<id>.+)/receipts/(?P<file>[^/]+)/file", _receipt_file(api)),
         Route("PATCH", r"/api/transactions/bulk", lambda req, m: api.update_transactions_bulk(
             req.json().get("ids") or [], req.json().get("changes") or {}
         )),
@@ -84,14 +86,12 @@ def _unquote(value: str) -> str:
     return unquote(value)
 
 
-def _upload_receipt(api: Api) -> Callable:
+def _upload_receipts(api: Api) -> Callable:
     def handler(request, match):
-        parts = request.multipart()
-        upload = parts.get("file")
-        if not upload:
+        files = request.multipart_files("file")
+        if not files:
             raise ApiError("Ingen fil bifogades.")
-        filename, data = upload
-        return api.upload_receipt(_unquote(match.group("id")), filename, data)
+        return api.upload_receipts(_unquote(match.group("id")), files)
 
     return handler
 
@@ -101,7 +101,9 @@ def _receipt_file(api: Api) -> Callable:
     inte ska JSON-koda innehållet."""
 
     def handler(request, match):
-        data, mimetype, filename = api.receipt_file(_unquote(match.group("id")))
+        data, mimetype, filename = api.receipt_file(
+            _unquote(match.group("id")), _unquote(match.group("file"))
+        )
         return FileResponse(data, mimetype, filename)
 
     return handler
@@ -154,11 +156,33 @@ class Request:
             raise ApiError("Ogiltig JSON i anropet.")
         return data if isinstance(data, dict) else {}
 
+    def multipart_files(self, name: str) -> List[Tuple[str, bytes]]:
+        """Alla filer som skickats under samma fältnamn.
+
+        ``multipart()`` returnerar en dict och tappar dubletter; en
+        uppladdning av flera filer använder samma fältnamn för varje fil.
+        """
+        files = []
+        for field, filename, payload in self._multipart_parts():
+            if field == name and filename:
+                files.append((filename, payload))
+        return files
+
     def multipart(self) -> Dict[str, Any]:
         """Tolka multipart/form-data.
 
         Textfält returneras som strängar, filer som ``(filnamn, bytes)``.
         """
+        fields: Dict[str, Any] = {}
+        for name, filename, payload in self._multipart_parts():
+            if filename:
+                fields[name] = (filename, payload)
+            else:
+                fields[name] = payload.decode("utf-8", "replace").strip()
+        return fields
+
+    def _multipart_parts(self):
+        """(fältnamn, filnamn eller None, innehåll) för varje del."""
         content_type = self.handler.headers.get("Content-Type", "")
         if "multipart/form-data" not in content_type:
             raise ApiError("Förväntade multipart/form-data.")
@@ -169,21 +193,15 @@ class Request:
             + self.body()
         )
         message = email.message_from_bytes(raw)
-        fields: Dict[str, Any] = {}
+        parts = []
         for part in message.walk():
             if part.get_content_maintype() == "multipart":
                 continue
             name = part.get_param("name", header="content-disposition")
             if not name:
                 continue
-            payload = part.get_payload(decode=True) or b""
-            filename = part.get_filename()
-            if filename:
-                fields[name] = (filename, payload)
-            else:
-                charset = part.get_content_charset() or "utf-8"
-                fields[name] = payload.decode(charset, "replace").strip()
-        return fields
+            parts.append((name, part.get_filename(), part.get_payload(decode=True) or b""))
+        return parts
 
 
 class Handler(BaseHTTPRequestHandler):

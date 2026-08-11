@@ -80,20 +80,23 @@ def preview(store: Store, transaction: Transaction) -> Dict[str, Any]:
             store.settings.get("subject_template") or DEFAULT_SUBJECT, values, "ämnesraden"
         ),
         "body": render(store.settings.get("body_template") or DEFAULT_BODY, values, "brödtexten"),
-        "attachment": transaction.receipt.stored_filename if transaction.receipt else None,
+        "attachments": [r.stored_filename for r in transaction.receipts],
         "missing": missing_settings(store),
     }
 
 
 def build_message(store: Store, transaction: Transaction) -> EmailMessage:
-    if transaction.receipt is None:
+    if not transaction.receipts:
         raise MailError("Raden har inget verifikat att bifoga.")
     missing = missing_settings(store)
     if missing:
         raise MailError(" ".join(missing.values()))
 
     try:
-        path, mimetype = receipts.receipt_file(store, transaction)
+        files = [
+            receipts.receipt_file(store, transaction, r.stored_filename)
+            for r in transaction.receipts
+        ]
     except receipts.ReceiptError as error:
         raise MailError(str(error))
 
@@ -106,13 +109,14 @@ def build_message(store: Store, transaction: Transaction) -> EmailMessage:
     message["Date"] = formatdate(localtime=True)
     message.set_content(details["body"] + "\n")
 
-    maintype, _, subtype = mimetype.partition("/")
-    message.add_attachment(
-        path.read_bytes(),
-        maintype=maintype or "application",
-        subtype=subtype or "octet-stream",
-        filename=transaction.receipt.stored_filename,
-    )
+    for path, mimetype in files:
+        maintype, _, subtype = mimetype.partition("/")
+        message.add_attachment(
+            path.read_bytes(),
+            maintype=maintype or "application",
+            subtype=subtype or "octet-stream",
+            filename=path.name,
+        )
     return message
 
 
@@ -123,7 +127,7 @@ def write_eml(store: Store, transaction: Transaction) -> Path:
     outbox.mkdir(parents=True, exist_ok=True)
 
     stem = slugify(
-        "{}-{}".format(transaction.date, Path(transaction.receipt.stored_filename).stem), 80
+        "{}-{}".format(transaction.date, Path(transaction.receipts[0].stored_filename).stem), 80
     ) or "verifikat"
     target = outbox / "{}.eml".format(stem)
     counter = 2

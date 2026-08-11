@@ -246,11 +246,24 @@ inloggning är att man inte var inloggad och fick en HTML-sida som heter
 `faktura.pdf`. Den avvisas med besked om vad som hänt, i stället för att
 upptäckas av bokföraren en månad senare.
 
-Ett verifikat per transaktion i version 1. Finns redan ett visas det i stället
-för uppladdningsrutan — PDF:er och bilder renderas direkt i fönstret. För att
-byta måste du först ta bort det befintliga; att skriva över tyst vore för lätt
-att göra av misstag, särskilt när man drar en fil på fel rad. Filer raderas
-aldrig, de flyttas till `data/trash/`.
+### Flera verifikat per transaktion
+
+En rad kan bära flera filer. Delbetalningar och samlingsfakturor kommer sällan
+som en enda PDF. Välj eller dra flera filer på en gång — de läggs till, inget
+skrivs över.
+
+Finns redan verifikat visas de i stället för uppladdningsrutan: en flik per fil
+och den valda renderad i fönstret. **Lägg till fler filer** fäller ut
+uppladdningen igen, och **Ta bort den visade** tar bort just den filen. Filer
+raderas aldrig, de flyttas till `data/trash/`.
+
+Filerna delar namnstomme och skiljs åt av krocksuffixet:
+`2026-03-14_449-00_google-workspace.pdf`, `…-2.pdf`, `…-3.pdf`.
+
+Att lägga till eller ta bort en fil nollställer **Skickat**. Det som skickades
+stämmer inte längre överens med underlaget, så raden hamnar tillbaka i kön.
+
+Alla filer på raden bifogas samma mejl.
 
 ## Utskick
 

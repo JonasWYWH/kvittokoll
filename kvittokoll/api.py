@@ -219,45 +219,51 @@ class Api:
 
     # -- verifikat --------------------------------------------------------
 
-    def upload_receipt(self, transaction_id: str, filename: str, data: bytes) -> Dict[str, Any]:
-        transaction = self.store.transaction_by_id(transaction_id)
-        if transaction is None:
-            raise ApiError("Transaktionen finns inte.", status=404)
-        if transaction.receipt is not None:
-            # Ett verifikat per rad i version 1 (§7.3). Att tyst skriva över
-            # ett befintligt vore lätt att göra av misstag — särskilt när man
-            # drar en fil på fel rad.
-            raise ApiError(
-                "Raden har redan verifikatet {}. Ta bort det först om du vill "
-                "byta.".format(transaction.receipt.stored_filename)
-            )
-        try:
-            receipt = receipts.store_receipt(self.store, transaction, filename, data)
-        except receipts.ReceiptError as error:
-            raise ApiError(str(error))
-        self.store.save_transactions()
-        return {"transaction": transaction.to_dict(), "receipt": receipt.to_dict()}
+    def upload_receipts(
+        self, transaction_id: str, files: List[Tuple[str, bytes]]
+    ) -> Dict[str, Any]:
+        """Lägg till en eller flera filer på raden (§7.3).
 
-    def delete_receipt(self, transaction_id: str) -> Dict[str, Any]:
-        transaction = self.store.transaction_by_id(transaction_id)
-        if transaction is None:
-            raise ApiError("Transaktionen finns inte.", status=404)
-        if transaction.receipt is None:
-            raise ApiError("Raden har inget verifikat.")
-        moved = receipts.remove_receipt(self.store, transaction)
+        Delbetalningar och samlingsfakturor kommer sällan som en enda fil, så
+        raden bär en lista. Filerna läggs till — inget skrivs över.
+        """
+        transaction = self._require(transaction_id)
+        if not files:
+            raise ApiError("Ingen fil togs emot.")
+        added = []
+        for filename, data in files:
+            try:
+                added.append(receipts.store_receipt(self.store, transaction, filename, data))
+            except receipts.ReceiptError as error:
+                if added:
+                    # Spara det som redan kommit in innan felet rapporteras.
+                    self.store.save_transactions()
+                raise ApiError(str(error))
+        self.store.save_transactions()
+        return {
+            "transaction": transaction.to_dict(),
+            "added": [r.to_dict() for r in added],
+        }
+
+    def delete_receipt(self, transaction_id: str, stored_filename: str) -> Dict[str, Any]:
+        transaction = self._require(transaction_id)
+        try:
+            moved = receipts.remove_receipt(self.store, transaction, stored_filename)
+        except receipts.ReceiptError as error:
+            raise ApiError(str(error), status=404)
         self.store.save_transactions()
         return {"transaction": transaction.to_dict(), "trashed": str(moved) if moved else None}
 
-    def receipt_file(self, transaction_id: str) -> Tuple[bytes, str, str]:
+    def receipt_file(
+        self, transaction_id: str, stored_filename: Optional[str] = None
+    ) -> Tuple[bytes, str, str]:
         """Returnerar ``(innehåll, mimetyp, filnamn)`` för visning i webbläsaren."""
-        transaction = self.store.transaction_by_id(transaction_id)
-        if transaction is None:
-            raise ApiError("Transaktionen finns inte.", status=404)
+        transaction = self._require(transaction_id)
         try:
-            path, mimetype = receipts.receipt_file(self.store, transaction)
+            path, mimetype = receipts.receipt_file(self.store, transaction, stored_filename)
         except receipts.ReceiptError as error:
             raise ApiError(str(error), status=404)
-        return path.read_bytes(), mimetype, transaction.receipt.stored_filename
+        return path.read_bytes(), mimetype, path.name
 
     # -- utskick ----------------------------------------------------------
 
@@ -267,7 +273,7 @@ class Api:
             details = mail.preview(self.store, transaction)
         except mail.MailError as error:
             raise ApiError(str(error))
-        details["can_send"] = bool(transaction.receipt) and not details["missing"]
+        details["can_send"] = bool(transaction.receipts) and not details["missing"]
         details["sent_at"] = transaction.sent_at
         return details
 
@@ -295,7 +301,7 @@ class Api:
 
     def mark_sent(self, transaction_id: str) -> Dict[str, Any]:
         transaction = self._require(transaction_id)
-        if transaction.receipt is None:
+        if not transaction.receipts:
             raise ApiError("Raden har inget verifikat och kan inte vara skickad.")
         mail.mark_sent(transaction)
         self.store.save_transactions()

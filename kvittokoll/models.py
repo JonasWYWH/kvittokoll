@@ -110,6 +110,15 @@ class Receipt:
         }
 
 
+def _read_receipts(data: Dict[str, Any]) -> List[Receipt]:
+    """Läser både listformen och den äldre filen med ett enda ``receipt``."""
+    raw = data.get("receipts")
+    if raw:
+        return [r for r in (Receipt.from_dict(item) for item in raw) if r]
+    single = Receipt.from_dict(data.get("receipt"))
+    return [single] if single else []
+
+
 @dataclass
 class Transaction:
     id: str
@@ -129,7 +138,9 @@ class Transaction:
     # ett beslut och rörs aldrig.
     source_manual: bool = False
     requires_receipt: bool = True
-    receipt: Optional[Receipt] = None
+    # Flera verifikat per rad: delbetalningar och samlingsfakturor kommer
+    # sällan som en enda fil.
+    receipts: List[Receipt] = field(default_factory=list)
     sent_at: Optional[str] = None
     status: str = STATUS_MISSING
     note: str = ""
@@ -146,9 +157,15 @@ class Transaction:
             return STATUS_NOT_REQUIRED
         if self.sent_at:
             return STATUS_SENT
-        if self.receipt:
+        if self.receipts:
             return STATUS_HAS_RECEIPT
         return STATUS_MISSING
+
+    def receipt_by_filename(self, stored_filename: str) -> Optional[Receipt]:
+        for receipt in self.receipts:
+            if receipt.stored_filename == stored_filename:
+                return receipt
+        return None
 
     def refresh_status(self) -> str:
         self.status = self.compute_status()
@@ -169,7 +186,7 @@ class Transaction:
             ambiguous_sources=list(data.get("ambiguous_sources") or []),
             source_manual=_as_bool(data.get("source_manual"), False),
             requires_receipt=_as_bool(data.get("requires_receipt"), True),
-            receipt=Receipt.from_dict(data.get("receipt")),
+            receipts=_read_receipts(data),
             sent_at=data.get("sent_at") or None,
             note=data.get("note") or "",
             imported_at=data.get("imported_at") or "",
@@ -193,7 +210,7 @@ class Transaction:
             "ambiguous_sources": self.ambiguous_sources,
             "source_manual": self.source_manual,
             "requires_receipt": self.requires_receipt,
-            "receipt": self.receipt.to_dict() if self.receipt else None,
+            "receipts": [r.to_dict() for r in self.receipts],
             "sent_at": self.sent_at,
             "status": self.status,
             "note": self.note,

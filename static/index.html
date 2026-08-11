@@ -236,22 +236,25 @@
       <div class="fetch-step" id="receipt-upload-step">
         <p class="small"><strong>2.</strong> Ladda upp filen här.</p>
         <div id="dropzone" class="dropzone">
-          <input type="file" id="receipt-file" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif">
-          <p class="muted small">Eller dra filen hit. PDF, JPG, PNG eller HEIC.</p>
+          <input type="file" id="receipt-file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif">
+          <p class="muted small">Eller dra filerna hit. PDF, JPG, PNG eller HEIC.
+            Flera filer går bra — delbetalningar och samlingsfakturor kommer sällan som en.</p>
         </div>
         <p id="receipt-name" class="muted small"></p>
       </div>
 
       <div id="receipt-current" hidden>
+        <div id="receipt-tabs" class="receipt-tabs"></div>
         <div id="receipt-preview" class="receipt-preview"></div>
         <p id="receipt-current-info" class="small"></p>
+        <p><button class="tiny" id="receipt-add-more">Lägg till fler filer</button></p>
       </div>
 
       <p id="receipt-error" class="error" hidden></p>
 
       <menu class="dialog-actions">
         <button value="cancel" class="link">Stäng</button>
-        <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort verifikatet</button>
+        <button value="default" id="receipt-remove" class="link danger" hidden>Ta bort den visade</button>
         <button value="default" id="receipt-upload" class="primary">Ladda upp</button>
         <button value="default" id="receipt-open" class="primary" hidden>Öppna i ny flik ↗</button>
       </menu>

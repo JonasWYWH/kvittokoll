@@ -156,13 +156,26 @@ class MailTest(unittest.TestCase):
         self.assertTrue(second.name.endswith("-2.eml"))
 
     def test_verifikat_som_forsvunnit_fran_disk_ger_begripligt_fel(self):
-        receipt = self.with_receipt().receipt
+        receipt = self.with_receipt().receipts[0]
         receipts.resolve_path(self.store, receipt.stored_path).unlink()
         with self.assertRaises(MailError) as caught:
             mail.build_message(self.store, self.transaction)
         self.assertIn("saknas", str(caught.exception))
 
     # -- markering ----------------------------------------------------------
+
+    def test_alla_verifikat_bifogas(self):
+        receipts.store_receipt(self.store, self.transaction, "del1.pdf", PDF)
+        receipts.store_receipt(self.store, self.transaction, "del2.pdf", PDF)
+        message = email.message_from_bytes(
+            mail.write_eml(self.store, self.transaction).read_bytes()
+        )
+        attachments = [p.get_filename() for p in message.walk() if p.get_filename()]
+        self.assertEqual(len(attachments), 2)
+        self.assertEqual(sorted(attachments), [
+            "2026-03-14_449-00_google-workspace-2.pdf",
+            "2026-03-14_449-00_google-workspace.pdf",
+        ])
 
     def test_markera_som_skickad(self):
         self.with_receipt()

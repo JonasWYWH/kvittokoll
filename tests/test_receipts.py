@@ -168,18 +168,18 @@ class StoreReceiptTest(unittest.TestCase):
     def test_borttagning_flyttar_till_papperskorgen(self):
         receipt = receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)
         path = receipts.resolve_path(self.store, receipt.stored_path)
-        moved = receipts.remove_receipt(self.store, self.transaction)
+        moved = receipts.remove_receipt(self.store, self.transaction, receipt.stored_filename)
 
         self.assertFalse(path.exists())
         self.assertTrue(Path(moved).is_file())
         self.assertEqual(Path(moved).read_bytes(), PDF)
-        self.assertIsNone(self.transaction.receipt)
+        self.assertEqual(self.transaction.receipts, [])
         self.assertEqual(self.transaction.status, "missing")
 
     def test_borttagning_nollstaller_aven_skickat(self):
-        receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)
+        receipt = receipts.store_receipt(self.store, self.transaction, "f.pdf", PDF)
         self.transaction.sent_at = "2026-04-02T09:15:00+02:00"
-        receipts.remove_receipt(self.store, self.transaction)
+        receipts.remove_receipt(self.store, self.transaction, receipt.stored_filename)
         self.assertIsNone(self.transaction.sent_at)
         self.assertEqual(self.transaction.status, "missing")
 
@@ -195,6 +195,59 @@ class StoreReceiptTest(unittest.TestCase):
         with self.assertRaises(ReceiptError) as caught:
             receipts.receipt_file(self.store, self.transaction)
         self.assertIn("saknas", str(caught.exception))
+
+    def test_flera_filer_pa_samma_rad(self):
+        first = receipts.store_receipt(self.store, self.transaction, "del1.pdf", PDF)
+        second = receipts.store_receipt(self.store, self.transaction, "del2.pdf", PDF)
+        third = receipts.store_receipt(self.store, self.transaction, "del3.png", PNG)
+
+        self.assertEqual(len(self.transaction.receipts), 3)
+        self.assertEqual(self.transaction.status, "has_receipt")
+        # Samma namnstomme, åtskilda av krocksuffixet.
+        self.assertEqual(first.stored_filename, "2026-03-14_449-00_google-workspace.pdf")
+        self.assertEqual(second.stored_filename, "2026-03-14_449-00_google-workspace-2.pdf")
+        self.assertEqual(third.stored_filename, "2026-03-14_449-00_google-workspace.png")
+        for r in self.transaction.receipts:
+            self.assertTrue(receipts.resolve_path(self.store, r.stored_path).is_file())
+
+    def test_en_av_flera_kan_tas_bort(self):
+        first = receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
+        second = receipts.store_receipt(self.store, self.transaction, "b.pdf", PDF)
+        receipts.remove_receipt(self.store, self.transaction, first.stored_filename)
+
+        self.assertEqual([r.stored_filename for r in self.transaction.receipts],
+                         [second.stored_filename])
+        self.assertEqual(self.transaction.status, "has_receipt")
+        self.assertFalse(receipts.resolve_path(self.store, first.stored_path).exists())
+        self.assertTrue(receipts.resolve_path(self.store, second.stored_path).is_file())
+
+    def test_sista_borttagna_ger_missing(self):
+        first = receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
+        second = receipts.store_receipt(self.store, self.transaction, "b.pdf", PDF)
+        receipts.remove_receipt(self.store, self.transaction, first.stored_filename)
+        receipts.remove_receipt(self.store, self.transaction, second.stored_filename)
+        self.assertEqual(self.transaction.status, "missing")
+
+    def test_ny_fil_nollstaller_skickat(self):
+        """Det som skickats stämmer inte längre överens med underlaget."""
+        receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
+        self.transaction.sent_at = "2026-04-02T09:15:00+02:00"
+        self.transaction.refresh_status()
+        receipts.store_receipt(self.store, self.transaction, "b.pdf", PDF)
+        self.assertIsNone(self.transaction.sent_at)
+        self.assertEqual(self.transaction.status, "has_receipt")
+
+    def test_okant_filnamn_gar_inte_att_ta_bort(self):
+        receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
+        with self.assertRaises(ReceiptError):
+            receipts.remove_receipt(self.store, self.transaction, "finns-inte.pdf")
+
+    def test_ratt_fil_serveras_nar_flera_finns(self):
+        receipts.store_receipt(self.store, self.transaction, "a.pdf", PDF)
+        andra = receipts.store_receipt(self.store, self.transaction, "b.png", PNG)
+        path, mimetype = receipts.receipt_file(self.store, self.transaction, andra.stored_filename)
+        self.assertEqual(mimetype, "image/png")
+        self.assertEqual(path.read_bytes(), PNG)
 
 
 if __name__ == "__main__":

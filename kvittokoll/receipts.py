@@ -11,7 +11,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .models import Receipt, Source, Transaction
 from .normalize import format_amount_filename, now_iso, slugify
@@ -159,7 +159,11 @@ def resolve_path(store: Store, stored_path: str) -> Path:
 def store_receipt(
     store: Store, transaction: Transaction, filename: str, data: bytes
 ) -> Receipt:
-    """Kopiera in filen, döp om den och koppla den till transaktionen."""
+    """Kopiera in filen, döp om den och lägg den till transaktionen.
+
+    Flera filer på samma rad får samma namnstomme och skiljs åt av
+    krocksuffixet: ``..._google-workspace.pdf``, ``..._google-workspace-2.pdf``.
+    """
     extension = validate(filename, data)
     source = store.source_by_id(transaction.source_id) if transaction.source_id else None
     template = store.settings.get("filename_template") or "{date}_{amount}_{tag}"
@@ -175,31 +179,54 @@ def store_receipt(
         stored_path=relative_path(store, target),
         uploaded_at=now_iso(),
     )
-    transaction.receipt = receipt
+    transaction.receipts.append(receipt)
+    # Det som skickats stämmer inte längre överens med underlaget.
+    transaction.sent_at = None
     transaction.refresh_status()
     return receipt
 
 
-def remove_receipt(store: Store, transaction: Transaction) -> Optional[Path]:
-    """Nollställ raden till missing. Filen flyttas till papperskorgen (§9.2)."""
-    if transaction.receipt is None:
-        return None
-    moved = store.move_to_trash(resolve_path(store, transaction.receipt.stored_path))
-    transaction.receipt = None
+def remove_receipt(
+    store: Store, transaction: Transaction, stored_filename: str
+) -> Optional[Path]:
+    """Ta bort ett verifikat. Filen flyttas till papperskorgen (§9.2)."""
+    receipt = transaction.receipt_by_filename(stored_filename)
+    if receipt is None:
+        raise ReceiptError("Raden har inget verifikat som heter {}.".format(stored_filename))
+    moved = store.move_to_trash(resolve_path(store, receipt.stored_path))
+    transaction.receipts = [r for r in transaction.receipts if r is not receipt]
     transaction.sent_at = None
     transaction.refresh_status()
     return moved
 
 
-def receipt_file(store: Store, transaction: Transaction) -> Tuple[Path, str]:
-    """Sökväg och MIME-typ för ett uppladdat verifikat."""
-    if transaction.receipt is None:
+def remove_all_receipts(store: Store, transaction: Transaction) -> List[Path]:
+    moved = []
+    for receipt in list(transaction.receipts):
+        result = remove_receipt(store, transaction, receipt.stored_filename)
+        if result:
+            moved.append(result)
+    return moved
+
+
+def receipt_file(
+    store: Store, transaction: Transaction, stored_filename: Optional[str] = None
+) -> Tuple[Path, str]:
+    """Sökväg och MIME-typ för ett uppladdat verifikat.
+
+    Utan filnamn returneras det första — bekvämt när raden bara har ett.
+    """
+    if not transaction.receipts:
         raise ReceiptError("Raden har inget verifikat.")
-    path = resolve_path(store, transaction.receipt.stored_path)
+    if stored_filename is None:
+        receipt = transaction.receipts[0]
+    else:
+        receipt = transaction.receipt_by_filename(stored_filename)
+        if receipt is None:
+            raise ReceiptError("Raden har inget verifikat som heter {}.".format(stored_filename))
+    path = resolve_path(store, receipt.stored_path)
     if not path.is_file():
-        raise ReceiptError(
-            "Verifikatfilen saknas på disk: {}".format(transaction.receipt.stored_path)
-        )
+        raise ReceiptError("Verifikatfilen saknas på disk: {}".format(receipt.stored_path))
     extension = extension_of(path.name)
     return path, ALLOWED_TYPES.get(extension, "application/octet-stream")
 

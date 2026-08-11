@@ -539,6 +539,25 @@ button.danger { color: var(--missing); }
 
 #receipt-current p { margin: 8px 0 0; }
 
+.receipt-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+
+.receipt-tab {
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font: inherit;
+  font-size: 12px;
+  font-family: var(--font-num);
+  cursor: pointer;
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-tab.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+
 .receipt-preview {
   border: 1px solid var(--line);
   border-radius: 8px;

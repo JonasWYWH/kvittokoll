@@ -448,18 +448,18 @@ class ApiTest(unittest.TestCase):
             "recipient_email": "inkorg@bokforing.example.se",
             "sender_email": "mig@mittforetag.se",
         })
-        self.api.upload_receipt(row["id"], "faktura.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        self.api.upload_receipts(row["id"], [("faktura.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")])
         return self.transaction("Google Workspace_ab Dublin")
 
     def test_utan_verifikat_gar_det_inte_att_skicka(self):
         row = self.transaction("Utdelning")
         details = self.api.email_preview(row["id"])
         self.assertFalse(details["can_send"])
-        self.assertIsNone(details["attachment"])
+        self.assertEqual(details["attachments"], [])
 
     def test_utan_adresser_gar_det_inte_att_skicka(self):
         row = self.transaction("Google Workspace_ab Dublin")
-        self.api.upload_receipt(row["id"], "f.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        self.api.upload_receipts(row["id"], [("f.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")])
         details = self.api.email_preview(row["id"])
         self.assertFalse(details["can_send"])
         self.assertIn("recipient_email", details["missing"])
@@ -470,7 +470,7 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(details["can_send"])
         self.assertEqual(details["missing"], {})
         self.assertEqual(details["to"], "inkorg@bokforing.example.se")
-        self.assertTrue(details["attachment"].endswith(".pdf"))
+        self.assertTrue(details["attachments"][0].endswith(".pdf"))
 
     def test_eml_skrivs_men_raden_markeras_inte_automatiskt(self):
         """§8.3 — verktyget kan inte veta om mejlet faktiskt gick iväg."""
@@ -497,27 +497,36 @@ class ApiTest(unittest.TestCase):
         with self.assertRaises(ApiError):
             self.api.mark_sent(row["id"])
 
-    def test_verifikat_skrivs_inte_over_tyst(self):
-        """Att dra fel fil på en rad ska inte kunna förstöra ett underlag."""
+    def test_flera_filer_laggs_till_utan_att_skriva_over(self):
+        """Delbetalningar och samlingsfakturor kommer sällan som en fil."""
+        row = self.receipted()
+        result = self.api.upload_receipts(row["id"], [
+            ("del2.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n"),
+            ("del3.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n"),
+        ])
+        self.assertEqual(len(result["added"]), 2)
+        namn = [r["original_filename"] for r in result["transaction"]["receipts"]]
+        self.assertEqual(namn, ["faktura.pdf", "del2.pdf", "del3.pdf"])
+
+    def test_en_av_flera_kan_tas_bort(self):
+        row = self.receipted()
+        self.api.upload_receipts(row["id"], [("del2.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")])
+        aktuell = self.transaction("Google Workspace_ab Dublin")
+        result = self.api.delete_receipt(row["id"], aktuell["receipts"][0]["stored_filename"])
+        self.assertEqual(len(result["transaction"]["receipts"]), 1)
+        self.assertEqual(result["transaction"]["status"], "has_receipt")
+
+    def test_okant_filnamn_ger_404(self):
         row = self.receipted()
         with self.assertRaises(ApiError) as caught:
-            self.api.upload_receipt(row["id"], "annan.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
-        self.assertIn("Ta bort det först", str(caught.exception))
-        self.assertEqual(
-            self.transaction("Google Workspace_ab Dublin")["receipt"]["original_filename"],
-            "faktura.pdf",
-        )
-
-    def test_efter_borttagning_gar_det_att_ladda_upp_igen(self):
-        row = self.receipted()
-        self.api.delete_receipt(row["id"])
-        result = self.api.upload_receipt(row["id"], "ny.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
-        self.assertEqual(result["receipt"]["original_filename"], "ny.pdf")
+            self.api.delete_receipt(row["id"], "finns-inte.pdf")
+        self.assertEqual(caught.exception.status, 404)
 
     def test_borttaget_verifikat_nollstaller_skickat(self):
         row = self.receipted()
         self.api.mark_sent(row["id"])
-        result = self.api.delete_receipt(row["id"])["transaction"]
+        namn = self.transaction("Google Workspace_ab Dublin")["receipts"][0]["stored_filename"]
+        result = self.api.delete_receipt(row["id"], namn)["transaction"]
         self.assertIsNone(result["sent_at"])
         self.assertEqual(result["status"], "missing")
 

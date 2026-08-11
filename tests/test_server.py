@@ -67,6 +67,25 @@ class ServerTest(unittest.TestCase):
             "Content-Type": "multipart/form-data; boundary={}".format(boundary)
         }
 
+    def multipart_files_body(self, files):
+        boundary = "----kvittokoll{}".format(uuid.uuid4().hex)
+        parts = []
+        for filename, data in files:
+            parts.append(
+                (
+                    "--{}\r\nContent-Disposition: form-data; name=\"file\"; "
+                    'filename="{}"\r\nContent-Type: application/octet-stream\r\n\r\n'.format(
+                        boundary, filename
+                    )
+                ).encode("utf-8")
+            )
+            parts.append(data)
+            parts.append(b"\r\n")
+        parts.append("--{}--\r\n".format(boundary).encode("utf-8"))
+        return b"".join(parts), {
+            "Content-Type": "multipart/form-data; boundary={}".format(boundary)
+        }
+
     def multipart_post(self, path, filename, data, fields=None):
         body, headers = self.multipart_body(filename, data, fields)
         return self.call("POST", path, body, headers)
@@ -171,28 +190,48 @@ class ServerTest(unittest.TestCase):
 
         pdf = b"%PDF-1.4\ntrailer\n%%EOF\n"
         status, result = self.multipart_post(
-            "/api/transactions/{}/receipt".format(quoted), "faktura.pdf", pdf
+            "/api/transactions/{}/receipts".format(quoted), "faktura.pdf", pdf
         )
         self.assertEqual(status, 200)
         self.assertEqual(result["transaction"]["status"], "has_receipt")
-        self.assertEqual(result["receipt"]["original_filename"], "faktura.pdf")
-        self.assertTrue(result["receipt"]["stored_filename"].endswith(".pdf"))
+        self.assertEqual(result["added"][0]["original_filename"], "faktura.pdf")
+        stored = result["added"][0]["stored_filename"]
 
         # Filen ska gå att öppna i webbläsaren, med rätt MIME-typ.
-        request = Request(self.base + "/api/transactions/{}/receipt/file".format(quoted))
-        with urlopen(request, timeout=10) as response:
+        url = "/api/transactions/{}/receipts/{}/file".format(quoted, quote(stored, safe=""))
+        with urlopen(Request(self.base + url), timeout=10) as response:
             self.assertEqual(response.headers["Content-Type"], "application/pdf")
             self.assertEqual(response.read(), pdf)
 
         status, removed = self.call(
-            "DELETE", "/api/transactions/{}/receipt".format(quoted)
+            "DELETE",
+            "/api/transactions/{}/receipts/{}".format(quoted, quote(stored, safe="")),
         )
         self.assertEqual(removed["transaction"]["status"], "missing")
-        self.assertIsNone(removed["transaction"]["receipt"])
+        self.assertEqual(removed["transaction"]["receipts"], [])
 
         with self.assertRaises(HTTPError) as caught:
-            self.call("GET", "/api/transactions/{}/receipt/file".format(quoted))
+            self.call("GET", url)
         self.assertEqual(caught.exception.code, 404)
+
+    def test_flera_filer_i_samma_uppladdning(self):
+        _, preview = self.upload("s.csv", fixture_bytes("swedbank_sample.csv"))
+        self.json_call("POST", "/api/import/commit", {"token": preview["token"]})
+        _, state = self.call("GET", "/api/state")
+        quoted = quote(state["transactions"][0]["id"], safe="")
+
+        pdf = b"%PDF-1.4\ntrailer\n%%EOF\n"
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+        body, headers = self.multipart_files_body([("del1.pdf", pdf), ("del2.png", png)])
+        status, result = self.call(
+            "POST", "/api/transactions/{}/receipts".format(quoted), body, headers
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(len(result["added"]), 2)
+        self.assertEqual(
+            [r["original_filename"] for r in result["transaction"]["receipts"]],
+            ["del1.pdf", "del2.png"],
+        )
 
     def test_inloggningssida_som_pdf_avvisas_over_http(self):
         _, preview = self.upload("s.csv", fixture_bytes("swedbank_sample.csv"))
@@ -202,7 +241,7 @@ class ServerTest(unittest.TestCase):
 
         with self.assertRaises(HTTPError) as caught:
             self.multipart_post(
-                "/api/transactions/{}/receipt".format(quoted),
+                "/api/transactions/{}/receipts".format(quoted),
                 "faktura.pdf",
                 b"<!DOCTYPE html><html><body>Logga in</body></html>",
             )
