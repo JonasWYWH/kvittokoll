@@ -1,0 +1,121 @@
+[
+  {
+    "id": "anthropic-claude",
+    "name": "Anthropic Claude",
+    "company": "Anthropic",
+    "receipt_url": "https://console.anthropic.com/settings/billing",
+    "receipt_type": "digital",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "ANTHROPIC", "mode": "starts_with"}],
+    "filename_tag": "anthropic-claude",
+    "note": "Fakturor under Settings → Billing."
+  },
+  {
+    "id": "arbetsgivaravgift",
+    "name": "Arbetsgivaravgift",
+    "company": "Skatteverket",
+    "requires_receipt": false,
+    "match_patterns": [{"pattern": "Arbetsgivaravgift", "mode": "starts_with"}],
+    "filename_tag": "arbetsgivaravgift",
+    "note": "Kontoutdraget är underlaget."
+  },
+  {
+    "id": "avdragen-skatt",
+    "name": "Avdragen skatt",
+    "company": "Skatteverket",
+    "requires_receipt": false,
+    "match_patterns": [{"pattern": "Avdragen skatt", "mode": "starts_with"}],
+    "filename_tag": "avdragen-skatt"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "company": "Figma",
+    "receipt_url": "https://www.figma.com/settings",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "FIGMA", "mode": "starts_with"}],
+    "filename_tag": "figma"
+  },
+  {
+    "id": "google-cloud",
+    "name": "Google Cloud",
+    "company": "Google",
+    "receipt_url": "https://console.cloud.google.com/billing",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "GOOGLE *CLOUD", "mode": "starts_with"}],
+    "filename_tag": "google-cloud",
+    "note": "Samma bolag som Workspace, men egen faktura och egen portal."
+  },
+  {
+    "id": "google-workspace",
+    "name": "Google Workspace",
+    "company": "Google",
+    "receipt_url": "https://admin.google.com/ac/billing/history",
+    "settings_url": "https://admin.google.com/ac/billing/settings",
+    "requires_receipt": true,
+    "auto_send_configured": false,
+    "match_patterns": [{"pattern": "GOOGLE *WORKSPACE", "mode": "starts_with"}],
+    "filename_tag": "google-workspace",
+    "note": "Fakturering → Fakturahistorik. Ladda ner PDF."
+  },
+  {
+    "id": "hyra-kontor",
+    "name": "Kontorshyra",
+    "company": "Fastighets AB Exempel",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "Hyra", "mode": "starts_with"}],
+    "filename_tag": "kontorshyra"
+  },
+  {
+    "id": "inbetalning",
+    "name": "Kundinbetalning",
+    "company": "Bankgiro",
+    "requires_receipt": true,
+    "match_patterns": ["12345678"],
+    "filename_tag": "kundinbetalning",
+    "note": "Underlaget är den utställda fakturan."
+  },
+  {
+    "id": "lon",
+    "name": "Löneutbetalning",
+    "company": "",
+    "requires_receipt": false,
+    "match_patterns": [{"pattern": "Löneutbetalning", "mode": "starts_with"}],
+    "filename_tag": "lon"
+  },
+  {
+    "id": "moms",
+    "name": "Moms",
+    "company": "Skatteverket",
+    "requires_receipt": false,
+    "match_patterns": [{"pattern": "Moms", "mode": "starts_with"}],
+    "filename_tag": "moms",
+    "note": "Kontoutdraget är underlaget."
+  },
+  {
+    "id": "netlify",
+    "name": "Netlify",
+    "company": "Netlify",
+    "receipt_url": "https://app.netlify.com/billing",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "NETLIFY", "mode": "starts_with"}],
+    "filename_tag": "netlify"
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "company": "Slack",
+    "receipt_url": "https://slack.com/admin/billing",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "SLACK", "mode": "starts_with"}],
+    "filename_tag": "slack"
+  },
+  {
+    "id": "telefoni",
+    "name": "Mobiltelefoni",
+    "company": "Teleoperatören AB",
+    "requires_receipt": true,
+    "match_patterns": [{"pattern": "TELEOPERATOREN", "mode": "starts_with"}],
+    "filename_tag": "mobiltelefoni"
+  }
+]

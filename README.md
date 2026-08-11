@@ -5,8 +5,8 @@ Lokalt verktyg för att stämma av banktransaktioner mot verifikat.
 All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON-filer
 och en webbapp mot `localhost`.
 
-> **Status: steg 1–8 av 9 byggda.** Import, dubbletthantering och arbetslistan
-> fungerar mot skarp data. Massutskick är inte byggt ännu. Se [Vad som saknas](#vad-som-saknas).
+> Verktyget används dagligen mot skarp bankdata. Massutskick (flera verifikat
+> i ett mejl) och SMTP är inte byggda — se [Vad som saknas](#vad-som-saknas). Se [Vad som saknas](#vad-som-saknas).
 
 ## Kom igång
 
@@ -22,8 +22,21 @@ python3 app.py --port 8421 --no-browser   # annan port, öppna själv
 python3 -m unittest discover -s tests -t tests   # kör testerna
 ```
 
-Kopiera `settings.example.json` till `settings.json` och fyll i dina uppgifter
-när utskicksdelen är byggd. Verktyget kör utan den filen.
+Ingen konfiguration behövs för att komma igång. Adress till bokföringens
+inkorg och mallar ställs in under **Inställningar** i verktyget, som skriver
+`settings.json` åt dig. `settings.example.json` visar alla fält och deras
+standardvärden.
+
+### Prova utan din egen bank
+
+```bash
+cp demo/sources.json data/sources.json
+python3 app.py
+```
+
+Importera sedan `demo/transaktioner-demo.csv`. Det är påhittade transaktioner
+i Swedbanks exportformat, med källor som redan matchar dem. Se
+[demo/README.md](demo/README.md).
 
 ## Så används det
 
@@ -198,6 +211,7 @@ kvittokoll/             logiken
 static/                 gränssnittet, vanilla JS
   fonts/                Work Sans och JetBrains Mono, self-hostade
 profiles/               importprofiler
+demo/                   påhittad data att prova med
 data/                   din data — ligger i .gitignore
   transactions.json
   sources.json

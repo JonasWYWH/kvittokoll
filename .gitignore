@@ -1,13 +1,18 @@
-# Verktygets data — transaktioner, verifikat, backuper. Aldrig i repot.
+# Din data. Transaktioner, verifikat, backuper, skapade mejl.
+# Ska aldrig hamna i ett repo — allt här är din bokföring.
 data/
-receipts/
-backups/
 settings.json
 
-# Riktiga bankexporter som ligger kvar for handtestning.
-Transactions/
+# Bankexporter. Lägg dem var du vill, men committa dem inte:
+# de innehåller kontonummer, saldon och motparter.
 *.csv
+*.CSV
+camt*.xml
+
+# Undantag: filer som hör till projektet och är påhittade.
+!demo/*.csv
 !tests/fixtures/*.csv
+!tests/fixtures/*.xml
 
 __pycache__/
 *.py[cod]
