@@ -41,6 +41,19 @@ def build_routes(api: Api) -> List[Route]:
         Route("POST", r"/api/import/preview", _import_preview(api)),
         Route("POST", r"/api/import/commit", lambda req, m: api.import_commit(req.json().get("token", ""))),
         Route("POST", r"/api/import/cancel", lambda req, m: api.import_cancel(req.json().get("token", ""))),
+        Route("GET", r"/api/transactions/(?P<id>.+)/email", lambda req, m: api.email_preview(
+            _unquote(m.group("id"))
+        )),
+        Route("POST", r"/api/transactions/(?P<id>.+)/email", lambda req, m: api.create_email(
+            _unquote(m.group("id"))
+        )),
+        Route("POST", r"/api/transactions/(?P<id>.+)/sent", lambda req, m: api.mark_sent(
+            _unquote(m.group("id"))
+        )),
+        Route("DELETE", r"/api/transactions/(?P<id>.+)/sent", lambda req, m: api.unmark_sent(
+            _unquote(m.group("id"))
+        )),
+        Route("PATCH", r"/api/settings", lambda req, m: api.update_settings(req.json())),
         Route("POST", r"/api/transactions/(?P<id>.+)/receipt", _upload_receipt(api)),
         Route("DELETE", r"/api/transactions/(?P<id>.+)/receipt", lambda req, m: api.delete_receipt(
             _unquote(m.group("id"))
@@ -261,8 +274,11 @@ class Handler(BaseHTTPRequestHandler):
         print("  {} {}".format(self.command or "", self.path or ""))
 
 
+LOOPBACK = ("127.0.0.1", "::1", "localhost")
+
+
 def create_server(store: Store, host: str = "127.0.0.1", port: int = 8420) -> ThreadingHTTPServer:
-    api = Api(store)
+    api = Api(store, allow_open=host in LOOPBACK)
     handler = type("BoundHandler", (Handler,), {"routes": build_routes(api)})
     return ThreadingHTTPServer((host, port), handler)
 

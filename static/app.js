@@ -17,6 +17,9 @@ const state = {
   sourceTarget: null,
   view: "list",
   receiptTarget: null,
+  sendTarget: null,
+  sendPreview: null,
+  emailCreated: false,
   flashTimer: null,
   editingSource: null,
   sourceDraft: {},
@@ -262,6 +265,19 @@ function receiptCell(row) {
     title="${escapeHtml(row.receipt.stored_filename)}">${STATUS_LABEL[row.status]}</button>`;
 }
 
+/* Skickat-kolumnen bär utskicket. Saknas verifikat går det inte att skicka,
+   och det ska stå — inte visas som en avstängd knapp utan förklaring. */
+function sentCell(row) {
+  if (!row.requires_receipt) return "—";
+  if (row.sent_at) {
+    return `<button class="badge sent" data-action="send"
+      title="Skickat ${escapeHtml(row.sent_at)}"><span class="num">${
+        row.sent_at.slice(0, 10)}</span></button>`;
+  }
+  if (!row.receipt) return `<span class="cell-hint">Väntar på verifikat</span>`;
+  return `<button class="tiny" data-action="send">Skicka</button>`;
+}
+
 function renderRow(row) {
   const source = sourceById(row.source_id);
   const tr = document.createElement("tr");
@@ -294,7 +310,7 @@ function renderRow(row) {
     </td>
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
     <td>${receiptCell(row)}</td>
-    <td class="date">${row.sent_at ? `<span class="num">${row.sent_at.slice(0, 10)}</span>` : "—"}</td>
+    <td class="date">${sentCell(row)}</td>
     <td class="actions">
       <button class="tiny" data-action="toggle-required">${
         row.requires_receipt ? "Kräver inget" : "Kräver verifikat"
@@ -371,6 +387,8 @@ el("list").addEventListener("click", async (event) => {
       openSourceDialog(row);
     } else if (button.dataset.action === "receipt") {
       openReceiptDialog(row);
+    } else if (button.dataset.action === "send") {
+      await openSendDialog(row);
     }
   } catch (error) {
     window.alert(error.message);
@@ -822,6 +840,126 @@ el("list").addEventListener("drop", async (event) => {
   } catch (error) {
     window.alert(error.message);
   }
+});
+
+/* ---------- utskick ---------- */
+
+async function openSendDialog(row) {
+  state.sendTarget = row;
+  el("send-context").innerHTML =
+    `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
+    ` · ${escapeHtml(row.description)}`;
+  el("send-result").hidden = true;
+  el("send-error").hidden = true;
+  el("send-dialog").showModal();
+  await refreshSendDialog();
+}
+
+async function refreshSendDialog() {
+  const row = state.sendTarget;
+  if (!row) return;
+  let details;
+  try {
+    details = await request(`/api/transactions/${encodeURIComponent(row.id)}/email`);
+  } catch (error) {
+    el("send-error").hidden = false;
+    el("send-error").textContent = error.message;
+    return;
+  }
+  state.sendPreview = details;
+
+  const missing = Object.values(details.missing || {});
+  el("send-settings").hidden = missing.length === 0;
+  el("send-missing").textContent = missing.join(" ");
+  el("send-recipient").value = details.to || state.settings.recipient_email || "";
+  el("send-sender").value = details.from || state.settings.sender_email || "";
+
+  el("send-to").textContent = details.to || "—";
+  el("send-from").textContent = details.from || "—";
+  el("send-subject").textContent = details.subject;
+  el("send-attachment").textContent = details.attachment || "saknas";
+  el("send-body").textContent = details.body;
+
+  el("send-create").disabled = !details.can_send;
+  el("send-create").textContent = details.sent_at ? "Skapa mejlet igen" : "Skapa och öppna mejl";
+  el("send-unmark").hidden = !details.sent_at;
+  // "Markera som skickad" visas först när mejlet skapats (§8.3), eller om
+  // raden redan hunnit bli skickad och ångrats.
+  el("send-mark").hidden = !state.emailCreated || Boolean(details.sent_at);
+}
+
+el("send-save-settings").addEventListener("click", async (event) => {
+  event.preventDefault();
+  try {
+    const result = await request("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient_email: el("send-recipient").value.trim(),
+        sender_email: el("send-sender").value.trim(),
+      }),
+    });
+    state.settings = result.settings;
+    el("send-error").hidden = true;
+    await refreshSendDialog();
+  } catch (error) {
+    el("send-error").hidden = false;
+    el("send-error").textContent = error.message;
+  }
+});
+
+el("send-create").addEventListener("click", async (event) => {
+  event.preventDefault();
+  const row = state.sendTarget;
+  if (!row) return;
+  try {
+    const result = await request(
+      `/api/transactions/${encodeURIComponent(row.id)}/email`, { method: "POST" }
+    );
+    state.emailCreated = true;
+    el("send-error").hidden = true;
+    el("send-result").hidden = false;
+    el("send-result").textContent = result.message;
+    el("send-mark").hidden = false;
+  } catch (error) {
+    el("send-error").hidden = false;
+    el("send-error").textContent = error.message;
+  }
+});
+
+el("send-mark").addEventListener("click", async (event) => {
+  event.preventDefault();
+  await setSent(true);
+});
+
+el("send-unmark").addEventListener("click", async (event) => {
+  event.preventDefault();
+  await setSent(false);
+});
+
+async function setSent(sent) {
+  const row = state.sendTarget;
+  if (!row) return;
+  try {
+    const result = await request(
+      `/api/transactions/${encodeURIComponent(row.id)}/sent`,
+      { method: sent ? "POST" : "DELETE" }
+    );
+    const index = state.transactions.findIndex((item) => item.id === row.id);
+    if (index >= 0) state.transactions[index] = result.transaction;
+    state.sendTarget = result.transaction;
+    state.emailCreated = false;
+    el("send-dialog").close();
+    render();
+    flash(sent ? "Raden är markerad som skickad." : "Markeringen är borttagen.");
+  } catch (error) {
+    el("send-error").hidden = false;
+    el("send-error").textContent = error.message;
+  }
+}
+
+el("send-dialog").addEventListener("close", () => {
+  state.emailCreated = false;
 });
 
 /* ---------- källdialog ---------- */

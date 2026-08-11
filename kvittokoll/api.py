@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from . import importer, receipts
+from . import importer, mail, receipts
 from .importers import ImportError_
 from .importers.profiles import load_profiles
 from .models import (
@@ -44,8 +44,11 @@ class ApiError(Exception):
 
 
 class Api:
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, allow_open: bool = True) -> None:
         self.store = store
+        # Att öppna en fil i användarens standardprogram är rimligt när servern
+        # kör på loopback, men inte om den exponerats mot nätverket.
+        self.allow_open = allow_open
         # Förhandsgranskningar väntar i minnet tills de bekräftas. Startas
         # servern om innan bekräftelse får användaren ladda upp filen igen —
         # vilket är rätt, eftersom ingenting hunnit skrivas.
@@ -221,6 +224,80 @@ class Api:
         except receipts.ReceiptError as error:
             raise ApiError(str(error), status=404)
         return path.read_bytes(), mimetype, transaction.receipt.stored_filename
+
+    # -- utskick ----------------------------------------------------------
+
+    def email_preview(self, transaction_id: str) -> Dict[str, Any]:
+        transaction = self._require(transaction_id)
+        try:
+            details = mail.preview(self.store, transaction)
+        except mail.MailError as error:
+            raise ApiError(str(error))
+        details["can_send"] = bool(transaction.receipt) and not details["missing"]
+        details["sent_at"] = transaction.sent_at
+        return details
+
+    def create_email(self, transaction_id: str) -> Dict[str, Any]:
+        """Skriv .eml-filen och öppna den i mejlklienten.
+
+        Raden markeras *inte* som skickad här. Verktyget kan inte veta om
+        mejlet faktiskt gick iväg — det bekräftar användaren själv (§8.3).
+        """
+        transaction = self._require(transaction_id)
+        try:
+            path = mail.write_eml(self.store, transaction)
+        except mail.MailError as error:
+            raise ApiError(str(error))
+
+        if not self.allow_open:
+            return {
+                "path": str(path),
+                "opened": False,
+                "message": "Servern lyssnar inte på localhost, så filen öppnades inte "
+                           "automatiskt. Den ligger på {}.".format(path),
+            }
+        opened, message = mail.open_file(path)
+        return {"path": str(path), "opened": opened, "message": message}
+
+    def mark_sent(self, transaction_id: str) -> Dict[str, Any]:
+        transaction = self._require(transaction_id)
+        if transaction.receipt is None:
+            raise ApiError("Raden har inget verifikat och kan inte vara skickad.")
+        mail.mark_sent(transaction)
+        self.store.save_transactions()
+        return {"transaction": transaction.to_dict()}
+
+    def unmark_sent(self, transaction_id: str) -> Dict[str, Any]:
+        transaction = self._require(transaction_id)
+        mail.unmark_sent(transaction)
+        self.store.save_transactions()
+        return {"transaction": transaction.to_dict()}
+
+    def _require(self, transaction_id: str) -> Transaction:
+        transaction = self.store.transaction_by_id(transaction_id)
+        if transaction is None:
+            raise ApiError("Transaktionen finns inte.", status=404)
+        return transaction
+
+    # -- inställningar ----------------------------------------------------
+
+    def update_settings(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Skriv de inställningar gränssnittet får röra."""
+        changes: Dict[str, Any] = {}
+        for field in ("recipient_email", "sender_email"):
+            if field in data:
+                value = str(data[field] or "").strip()
+                if value and "@" not in value:
+                    raise ApiError("{} ser inte ut som en mejladress.".format(value))
+                changes[field] = value
+        for field in ("subject_template", "body_template", "filename_template"):
+            if field in data:
+                changes[field] = str(data[field] or "").strip()
+        if "hide_not_required" in data:
+            changes["hide_not_required"] = bool(data["hide_not_required"])
+
+        self.store.save_settings(changes)
+        return {"settings": {key: self.store.settings.get(key) for key in PUBLIC_SETTINGS}}
 
     # -- källor -----------------------------------------------------------
 

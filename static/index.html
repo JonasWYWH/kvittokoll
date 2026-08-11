@@ -117,6 +117,50 @@
     </form>
   </dialog>
 
+  <dialog id="send-dialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Skicka verifikat</h2>
+      <p class="muted" id="send-context"></p>
+
+      <div id="send-settings" hidden>
+        <p class="error small" id="send-missing"></p>
+        <div class="grid-two">
+          <label class="field block">Till — bokföringens inkorg
+            <input type="email" id="send-recipient" placeholder="xxxxx@inbox.example.se"></label>
+          <label class="field block">Från — din avsändaradress
+            <input type="email" id="send-sender" placeholder="mig@mittforetag.se"></label>
+        </div>
+        <button class="tiny" id="send-save-settings">Spara adresserna</button>
+      </div>
+
+      <div id="send-preview" class="mail-preview">
+        <dl>
+          <dt>Till</dt><dd id="send-to"></dd>
+          <dt>Från</dt><dd id="send-from"></dd>
+          <dt>Ämne</dt><dd id="send-subject"></dd>
+          <dt>Bilaga</dt><dd id="send-attachment" class="num"></dd>
+        </dl>
+        <pre id="send-body"></pre>
+      </div>
+
+      <p class="muted small">
+        Verktyget skriver en <code>.eml</code>-fil och öppnar den i din mejlklient med
+        bilagan på plats. Du trycker skicka själv — och markerar raden som skickad
+        efteråt, eftersom verktyget inte kan veta om mejlet gick iväg.
+      </p>
+
+      <p id="send-result" class="small" hidden></p>
+      <p id="send-error" class="error" hidden></p>
+
+      <menu class="dialog-actions">
+        <button value="cancel" class="link">Stäng</button>
+        <button value="default" id="send-unmark" class="link danger" hidden>Ångra skickat</button>
+        <button value="default" id="send-mark" class="primary" hidden>Markera som skickad</button>
+        <button value="default" id="send-create" class="primary">Skapa och öppna mejl</button>
+      </menu>
+    </form>
+  </dialog>
+
   <dialog id="receipt-dialog">
     <form method="dialog" class="dialog-body">
       <h2>Verifikat</h2>

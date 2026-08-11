@@ -334,6 +334,90 @@ class ApiTest(unittest.TestCase):
             self.api.update_transaction("finns|inte|alls|1", {"note": "x"})
         self.assertEqual(caught.exception.status, 404)
 
+    # -- utskick ----------------------------------------------------------
+
+    def receipted(self):
+        """En rad med verifikat och ifyllda adresser."""
+        row = self.transaction("Google Workspace_ab Dublin")
+        self.api.update_settings({
+            "recipient_email": "inkorg@bokforing.example.se",
+            "sender_email": "mig@mittforetag.se",
+        })
+        self.api.upload_receipt(row["id"], "faktura.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        return self.transaction("Google Workspace_ab Dublin")
+
+    def test_utan_verifikat_gar_det_inte_att_skicka(self):
+        row = self.transaction("Utdelning")
+        details = self.api.email_preview(row["id"])
+        self.assertFalse(details["can_send"])
+        self.assertIsNone(details["attachment"])
+
+    def test_utan_adresser_gar_det_inte_att_skicka(self):
+        row = self.transaction("Google Workspace_ab Dublin")
+        self.api.upload_receipt(row["id"], "f.pdf", b"%PDF-1.4\ntrailer\n%%EOF\n")
+        details = self.api.email_preview(row["id"])
+        self.assertFalse(details["can_send"])
+        self.assertIn("recipient_email", details["missing"])
+
+    def test_med_verifikat_och_adresser_gar_det_att_skicka(self):
+        row = self.receipted()
+        details = self.api.email_preview(row["id"])
+        self.assertTrue(details["can_send"])
+        self.assertEqual(details["missing"], {})
+        self.assertEqual(details["to"], "inkorg@bokforing.example.se")
+        self.assertTrue(details["attachment"].endswith(".pdf"))
+
+    def test_eml_skrivs_men_raden_markeras_inte_automatiskt(self):
+        """§8.3 — verktyget kan inte veta om mejlet faktiskt gick iväg."""
+        api = Api(self.store, allow_open=False)
+        row = self.receipted()
+        result = api.create_email(row["id"])
+        self.assertTrue(Path(result["path"]).is_file())
+        self.assertFalse(result["opened"])
+        self.assertIsNone(self.transaction("Google Workspace_ab Dublin")["sent_at"])
+        self.assertEqual(self.transaction("Google Workspace_ab Dublin")["status"], "has_receipt")
+
+    def test_markera_och_angra_skickat(self):
+        row = self.receipted()
+        marked = self.api.mark_sent(row["id"])["transaction"]
+        self.assertEqual(marked["status"], "sent")
+        self.assertTrue(marked["sent_at"])
+
+        unmarked = self.api.unmark_sent(row["id"])["transaction"]
+        self.assertIsNone(unmarked["sent_at"])
+        self.assertEqual(unmarked["status"], "has_receipt")
+
+    def test_rad_utan_verifikat_kan_inte_markeras_som_skickad(self):
+        row = self.transaction("Utdelning")
+        with self.assertRaises(ApiError):
+            self.api.mark_sent(row["id"])
+
+    def test_borttaget_verifikat_nollstaller_skickat(self):
+        row = self.receipted()
+        self.api.mark_sent(row["id"])
+        result = self.api.delete_receipt(row["id"])["transaction"]
+        self.assertIsNone(result["sent_at"])
+        self.assertEqual(result["status"], "missing")
+
+    # -- inställningar ----------------------------------------------------
+
+    def test_adresser_sparas_till_settings_json(self):
+        self.api.update_settings({"recipient_email": "inkorg@bokforing.example.se"})
+        self.assertTrue(self.store.settings_path.is_file())
+        fresh = Api(temp_store_like(self.store))
+        self.assertEqual(
+            fresh.state()["settings"]["recipient_email"], "inkorg@bokforing.example.se"
+        )
+
+    def test_orimlig_adress_avvisas(self):
+        with self.assertRaises(ApiError):
+            self.api.update_settings({"recipient_email": "inte-en-adress"})
+
+    def test_tom_adress_far_sparas(self):
+        """Att nollställa en adress ska gå — det är inte samma sak som skräp."""
+        self.api.update_settings({"recipient_email": ""})
+        self.assertEqual(self.api.state()["settings"]["recipient_email"], "")
+
     # -- state ------------------------------------------------------------
 
     def test_state_innehaller_det_granssnittet_behover(self):

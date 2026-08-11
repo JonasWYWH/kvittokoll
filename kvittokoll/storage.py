@@ -93,6 +93,7 @@ class Store:
         self.profiles_dir = self._resolve(self.settings["profiles_dir"])
         self.backups_dir = self._resolve(self.settings.get("backups_dir") or "./data/backups")
         self.trash_dir = self._resolve(self.settings.get("trash_dir") or "./data/trash")
+        self.outbox_dir = self._resolve(self.settings.get("outbox_dir") or "./data/outbox")
         self.transactions_path = self.data_dir / "transactions.json"
         self.sources_path = self.data_dir / "sources.json"
 

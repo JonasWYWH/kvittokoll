@@ -9,5 +9,6 @@
   "profiles_dir": "./profiles",
   "backups_dir": "./data/backups",
   "trash_dir": "./data/trash",
+  "outbox_dir": "./data/outbox",
   "hide_not_required": true
 }

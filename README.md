@@ -5,8 +5,8 @@ Lokalt verktyg för att stämma av banktransaktioner mot verifikat.
 All data ligger på din dator. Ingen server, inget konto, ingen databas — JSON-filer
 och en webbapp mot `localhost`.
 
-> **Status: steg 1–6 av 9 byggda.** Import, dubbletthantering och arbetslistan
-> fungerar mot skarp data. `.eml`-utskick och inställningsvy är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
+> **Status: steg 1–7 av 9 byggda.** Import, dubbletthantering och arbetslistan
+> fungerar mot skarp data. Inställningsvyn och massutskick är inte byggda ännu. Se [Vad som saknas](#vad-som-saknas).
 
 ## Kom igång
 
@@ -35,11 +35,15 @@ när utskicksdelen är byggd. Verktyget kör utan den filen.
 5. Klicka **Ladda upp** i verifikatkolumnen. Modalen visar källans länk — öppna
    den, logga in, ladda hem filen, och ladda upp den. Du kan också dra filen
    direkt på raden.
+6. Klicka **Skicka**. Verktyget skapar en `.eml` med verifikatet bifogat och
+   öppnar den i din mejlklient. Du trycker skicka, och markerar raden som
+   skickad.
 
 Varje rad visar sin källa som en pill under datumet. Saknas källa står det
 **Koppla källa** där istället — aldrig båda, så raden håller sig smal.
 Verifikatkolumnen fungerar likadant: **Ladda upp** när verifikatet saknas,
-annars en klickbar statusbadge. Båda öppnar samma modal. Under
+annars en klickbar statusbadge. Skickat-kolumnen med: *Väntar på verifikat*
+tills det finns något att bifoga, sedan **Skicka**, sedan datumet. Under
 **Källor** i toppen redigerar du namn, länkar, verifikattyp och mönster, och
 ser hur många transaktioner varje källa fångar.
 
@@ -155,6 +159,7 @@ kvittokoll/             logiken
   dedupe.py             dubblettnyckeln
   sources.py            källmatchning
   receipts.py           uppladdning och namnstandard
+  mail.py               .eml-generering
   importer.py           förhandsgranska → bekräfta
   importers/            camt.053, CSV, profiler
   api.py                API-lagret, vet inget om HTTP
@@ -166,6 +171,7 @@ data/                   din data — ligger i .gitignore
   transactions.json
   sources.json
   receipts/ÅÅÅÅ-MM/     uppladdade verifikat
+  outbox/               skapade .eml-filer
   backups/
   trash/
 ```
@@ -212,6 +218,26 @@ Ett verifikat per transaktion i version 1. Laddar du upp ett nytt flyttas det
 gamla till papperskorgen. Samma sak vid **Ta bort verifikatet** — filer raderas
 aldrig, de flyttas till `data/trash/`.
 
+## Utskick
+
+`mailto:` kan inte bifoga filer, och SMTP skulle kräva att du lägger ett
+app-lösenord i en konfigfil. Därför `.eml`: verktyget skriver en komplett
+mejlfil till `data/outbox/` och öppnar den i din mejlklient med bilagan redan på
+plats. Du trycker skicka.
+
+Ämnesrad och brödtext byggs av mallarna i `settings.json`, med platshållarna
+`{date}`, `{amount}`, `{source}`, `{company}` och `{account}`. Beloppet behåller
+sitt tecken här — en inbetalning och en utgift ska inte se likadana ut i
+ämnesraden.
+
+Adresserna fylls i första gången du skickar; de sparas i `settings.json`.
+
+**Verktyget vet inte om mejlet gick iväg.** Det kan bara skapa filen och öppna
+den. Därför markerar du raden som skickad i ett eget steg, efteråt. Att en rad
+står som skickad betyder att du sa att den var det.
+
+Massutskick (§8.4 i kravspecen) och SMTP som alternativ är inte byggda.
+
 ## Typsnitt
 
 Work Sans för text, JetBrains Mono för belopp, datum och antal — siffror som
@@ -237,12 +263,12 @@ adress som andra kan nå.
 
 Byggt: datamodell med atomiska skrivningar, import av camt.053 och CSV,
 dubblettlogik, arbetslistan med statusar, kräver-verifikat-växlare,
-källregistret med matchning, koppling och redigerbar källvy, samt uppladdning
-av verifikat med namnstandard.
+källregistret med matchning, koppling och redigerbar källvy, uppladdning av
+verifikat med namnstandard, samt `.eml`-utskick per rad.
 
-Inte byggt ännu: `.eml`-generering enskilt och i grupp (steg 7) och
-inställningsvy (steg 8). Kolumnen Skickat visar status men har ingen knapp
-ännu.
+Inte byggt ännu: massutskick (§8.4) och inställningsvyn (steg 8). Adresserna
+går att fylla i från utskicksmodalen; övriga inställningar redigeras i
+`settings.json`.
 
 ## Krav
 

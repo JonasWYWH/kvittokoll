@@ -453,3 +453,36 @@ button.badge {
 }
 
 button.badge:hover { border-color: currentColor; }
+
+
+/* ---------- utskick ---------- */
+
+.mail-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 14px 0;
+  background: var(--neutral-bg);
+}
+
+.mail-preview dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 14px;
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.mail-preview dt { color: var(--muted); }
+.mail-preview dd { margin: 0; overflow-wrap: anywhere; }
+
+.mail-preview pre {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font: inherit;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.cell-hint { color: var(--muted); font-size: 12px; font-style: italic; }
