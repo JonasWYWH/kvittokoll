@@ -1031,12 +1031,15 @@ async function openSourceDialog(row) {
   el("source-context").innerHTML =
     `<span class="num">${row.date}</span> · <span class="num">${formatAmount(row.amount)}</span> kr` +
     ` · ${escapeHtml(row.description)}`;
+  // Ny källa överst: det är det man kommer hit för när ingen befintlig passar.
+  // <hr> i en select stöds av alla nuvarande webbläsare och ignoreras tyst av
+  // äldre, så listan fungerar även utan avgränsaren.
   el("source-select").innerHTML =
+    '<option value="__new__">Ny källa…</option><hr>' +
     '<option value="">Ingen källa</option>' +
     state.sources
       .map((source) => `<option value="${source.id}">${escapeHtml(source.name)}</option>`)
-      .join("") +
-    '<option value="__new__">Ny källa…</option>';
+      .join("");
   el("source-select").value = row.source_id || "";
   el("source-name").value = row.description;
   el("source-company").value = "";
