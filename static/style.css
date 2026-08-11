@@ -230,6 +230,9 @@ input, select, textarea {
 
 .month-head .muted { font-weight: 400; }
 
+/* Växlaren för dolda rader ligger högerställd på månadsraden. */
+.month-toggle { margin-left: auto; font-size: 13px; }
+
 table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }

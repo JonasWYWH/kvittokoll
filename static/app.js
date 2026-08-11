@@ -11,6 +11,7 @@ const state = {
   profiles: [],
   matchModes: [],
   paths: {},
+  expandedMonths: new Set(),
   settings: {},
   selected: new Set(),
   staged: null,
@@ -86,8 +87,9 @@ async function load() {
   state.matchModes = data.match_modes || [];
   state.paths = data.paths || {};
   state.transactions = data.transactions || [];
-  if (!el("show-not-required").dataset.touched) {
-    el("show-not-required").checked = state.settings.hide_not_required === false;
+  // hide_not_required är utgångsläget: är den av börjar alla månader utfällda.
+  if (state.settings.hide_not_required === false && !state.expandedMonths.size) {
+    for (const row of state.transactions) state.expandedMonths.add(row.date.slice(0, 7));
   }
   fillSourceFilter();
   fillProfiles();
@@ -129,10 +131,7 @@ function visibleTransactions() {
   const source = el("filter-source").value;
   const from = el("filter-from").value;
   const to = el("filter-to").value;
-  const showNotRequired = el("show-not-required").checked;
-
   let rows = state.transactions.filter((row) => {
-    if (!showNotRequired && !row.requires_receipt && status !== "not_required") return false;
     if (status && row.status !== status) return false;
     if (source === "__none__" && row.source_id) return false;
     if (source && source !== "__none__" && row.source_id !== source) return false;
@@ -194,6 +193,13 @@ function render() {
   }
 }
 
+/* Dolda rader visas per månad. Man arbetar med en månad i taget, och en
+   global växlare tvingar fram allt eller inget. */
+function monthIsExpanded(key) {
+  if (el("filter-status").value === "not_required") return true;
+  return state.expandedMonths.has(key);
+}
+
 function renderSummary(rows) {
   const summary = el("summary");
   if (!state.transactions.length) {
@@ -213,7 +219,7 @@ function renderSummary(rows) {
       saknar <span class="count missing">${missing}</span> verifikat.</span>
     <span class="muted"><span class="num">${hasReceipt}</span> har verifikat men är inte
       skickade · <span class="num">${sent}</span> skickade ·
-      <span class="num">${rows.length - requiring.length}</span> utan verifikatkrav</span>`;
+      <span class="num">${rows.length - requiring.length}</span> dolda</span>`;
 }
 
 function describePeriod(rows) {
@@ -223,9 +229,13 @@ function describePeriod(rows) {
   return "";
 }
 
-function renderMonth(key, rows) {
+function renderMonth(key, allRows) {
   const section = document.createElement("section");
   section.className = "month";
+
+  const hiddenCount = allRows.filter((row) => !row.requires_receipt).length;
+  const expanded = monthIsExpanded(key);
+  const rows = expanded ? allRows : allRows.filter((row) => row.requires_receipt);
 
   const missing = rows.filter((row) => row.status === "missing").length;
   const total = rows.reduce((sum, row) => sum + row.amount, 0);
@@ -238,8 +248,15 @@ function renderMonth(key, rows) {
       missing
         ? ` · <strong class="badge missing"><span class="num">${missing}</span> saknar verifikat</strong>`
         : ""
-    }</span>`;
+    }</span>
+    ${hiddenCount
+      ? `<button class="link-quiet month-toggle" data-month="${key}">${
+          expanded ? "Dölj igen" : "Visa dolda"
+        } (<span class="num">${hiddenCount}</span>)</button>`
+      : ""}`;
   section.appendChild(head);
+
+  if (!rows.length) return section;
 
   const table = document.createElement("table");
   table.innerHTML = `
@@ -381,6 +398,15 @@ el("list").addEventListener("click", async (event) => {
   } catch (error) {
     window.alert(error.message);
   }
+});
+
+el("list").addEventListener("click", (event) => {
+  const toggle = event.target.closest("button.month-toggle");
+  if (!toggle) return;
+  const key = toggle.dataset.month;
+  if (state.expandedMonths.has(key)) state.expandedMonths.delete(key);
+  else state.expandedMonths.add(key);
+  render();
 });
 
 el("list").addEventListener("change", (event) => {
@@ -1227,11 +1253,6 @@ for (const id of ["filter-text", "filter-status", "filter-source", "filter-from"
   el(id).addEventListener("input", render);
   el(id).addEventListener("change", render);
 }
-
-el("show-not-required").addEventListener("change", (event) => {
-  event.target.dataset.touched = "1";
-  render();
-});
 
 el("filter-reset").addEventListener("click", (event) => {
   event.preventDefault();
