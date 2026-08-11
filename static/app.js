@@ -259,7 +259,13 @@ function renderMonth(key, allRows) {
   if (!rows.length) return section;
 
   const table = document.createElement("table");
+  // Varje månad är en egen tabell. Utan låsta bredder räknar de ut sina
+  // kolumner var för sig och slutar linjera med varandra.
   table.innerHTML = `
+    <colgroup>
+      <col class="c-select"><col class="c-date"><col class="c-text"><col class="c-amount">
+      <col class="c-receipt"><col class="c-sent"><col class="c-actions">
+    </colgroup>
     <thead><tr>
       <th class="select"></th>
       <th>Datum</th>

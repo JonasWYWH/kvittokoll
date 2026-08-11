@@ -233,7 +233,23 @@ input, select, textarea {
 /* Växlaren för dolda rader ligger högerställd på månadsraden. */
 .month-toggle { margin-left: auto; font-size: 13px; }
 
-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+col.c-select { width: 34px; }
+col.c-date { width: 160px; }
+col.c-text { width: auto; }
+col.c-amount { width: 130px; }
+col.c-receipt { width: 140px; }
+col.c-sent { width: 165px; }
+col.c-actions { width: 46px; }
 
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; background: var(--neutral-bg); }
@@ -263,7 +279,7 @@ tr.not-required td.text, tr.not-required td.amount { opacity: 0.55; }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Åtgärdskolumnen har ingen rubrik — ikonen ska tala för sig själv. */
-td.row-actions, th.row-actions { width: 1%; white-space: nowrap; text-align: right; }
+td.row-actions, th.row-actions { white-space: nowrap; text-align: right; }
 
 button.icon {
   display: inline-flex;
@@ -293,7 +309,7 @@ tr.not-required button.icon { color: var(--accent); }
 }
 
 /* Radens andra rad: källan under datumet, i linje med transaktionstypen. */
-.cell-main { display: block; }
+.cell-main { display: block; overflow-wrap: anywhere; }
 .cell-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 18px; }
 
 .pill {
@@ -307,7 +323,7 @@ tr.not-required button.icon { color: var(--accent); }
   font-size: 12px;
   line-height: 18px;
   cursor: pointer;
-  max-width: 22ch;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
