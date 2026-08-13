@@ -24,6 +24,7 @@ const state = {
   emailCreated: false,
   flashTimer: null,
   editingSource: null,
+  sourceOriginal: null,
   sourceDraft: {},
 };
 
@@ -498,6 +499,8 @@ function renderSources() {
       med <em>Ny källa</em> här.</p>`;
     return;
   }
+  // renderSources ritar om hela tabellen; markeringarna måste sättas igen.
+  setTimeout(refreshDirty, 0);
   list.innerHTML = `<table class="sources-table">
     <colgroup>
       <col class="c-name"><col class="c-rules"><col class="c-count">
@@ -523,15 +526,14 @@ function patternChips(source) {
 }
 
 function renderSourceRow(source) {
-  if (state.editingSource === source.id) return renderSourceEditor(source);
-
+  const editing = state.editingSource === source.id;
   const märken = [
     source.requires_receipt ? "" : '<span class="badge not_required">Inget krav</span>',
     source.receipt_type === "physical" ? '<span class="badge not_required">Fotas</span>' : "",
     source.auto_send_configured ? '<span class="badge sent">Mejlas automatiskt</span>' : "",
   ].filter(Boolean).join(" ");
 
-  return `<tr data-source="${escapeHtml(source.id)}">
+  const row = `<tr data-source="${escapeHtml(source.id)}"${editing ? ' class="source-open"' : ""}>
     <td class="text">
       <span class="cell-main">${escapeHtml(source.name)}</span>
       <span class="cell-meta">${escapeHtml(source.company) || "—"} ${märken}</span>
@@ -547,8 +549,12 @@ function renderSourceRow(source) {
         ? `<a href="${escapeHtml(source.settings_url)}" target="_blank" rel="noopener">Mejlinställning ↗</a>`
         : ""}
     </td>
-    <td class="c-edit"><button class="tiny" data-source-action="edit">Redigera</button></td>
+    <td class="c-edit"><button class="tiny" data-source-action="${editing ? "close" : "edit"}"
+      >${editing ? "Stäng" : "Redigera"}</button></td>
   </tr>`;
+  // Redigeraren läggs under raden i stället för att ersätta den, så att
+  // knappen man öppnade med ligger kvar under muspekaren.
+  return editing ? row + renderSourceEditor(source) : row;
 }
 
 function renderSourceEditor(source) {
@@ -605,8 +611,8 @@ function renderSourceEditor(source) {
     <div class="editor-actions">
       <button class="link danger" data-source-action="delete">Ta bort källan</button>
       <span class="spacer"></span>
-      <button class="link" data-source-action="cancel">Avbryt</button>
-      <button class="primary" data-source-action="save">Spara</button>
+      <span class="change-summary" data-change-summary></span>
+      <button class="primary" data-source-action="save" disabled>Spara</button>
     </div>
     <p class="error" data-source-error hidden></p>
   </td></tr>`;
@@ -621,13 +627,16 @@ el("sources-list").addEventListener("click", async (event) => {
 
   if (action === "edit") {
     state.editingSource = id;
+    state.sourceOriginal = sourceSnapshot(sourceById(id) || {});
     renderSources();
-  } else if (action === "cancel") {
+    refreshDirty();
+  } else if (action === "close") {
     // Utkastet har skrivits in i state.sources för att överleva omritningar
     // när man lägger till mönster. Avbryter man måste det kastas, annars står
     // ändringarna kvar i listan trots att de aldrig sparades.
     state.editingSource = null;
     state.sourceDraft = {};
+    state.sourceOriginal = null;
     await load();
     showView("sources");
   } else if (action === "add-pattern") {
@@ -679,9 +688,7 @@ el("sources-list").addEventListener("click", async (event) => {
   }
 });
 
-/* Läser av formuläret innan en omritning, så att inskrivna värden inte
-   försvinner när man lägger till eller tar bort ett mönster. */
-function collectDraft(card, id) {
+function readDraft(card) {
   const draft = {};
   for (const input of card.querySelectorAll("[data-field]")) {
     draft[input.dataset.field] = input.type === "checkbox" ? input.checked : input.value;
@@ -690,9 +697,73 @@ function collectDraft(card, id) {
     pattern: row.querySelector("[data-pattern-text]").value,
     mode: row.querySelector("[data-pattern-mode]").value,
   }));
-  state.sourceDraft = draft;
   return draft;
 }
+
+/* Läser av formuläret innan en omritning, så att inskrivna värden inte
+   försvinner när man lägger till eller tar bort ett mönster. */
+function collectDraft(card, id) {
+  state.sourceDraft = readDraft(card);
+  return state.sourceDraft;
+}
+
+/* Utgångsläget, taget när redigeraren öppnas. Utan det går det inte att säga
+   om något faktiskt ändrats — bara att fälten har värden. */
+function sourceSnapshot(source) {
+  return {
+    name: source.name || "",
+    company: source.company || "",
+    receipt_url: source.receipt_url || "",
+    settings_url: source.settings_url || "",
+    receipt_type: source.receipt_type || "digital",
+    filename_tag: source.filename_tag || "",
+    note: source.note || "",
+    requires_receipt: Boolean(source.requires_receipt),
+    auto_send_configured: Boolean(source.auto_send_configured),
+    match_patterns: (source.match_patterns || []).map((raw) =>
+      typeof raw === "string"
+        ? { pattern: raw, mode: "contains" }
+        : { pattern: raw.pattern, mode: raw.mode }),
+  };
+}
+
+/* Markerar vad som skiljer sig från utgångsläget, och styr om Spara går att
+   trycka på. Ett aktivt Spara utan ändringar lovar något som inte finns. */
+function refreshDirty() {
+  const id = state.editingSource;
+  if (!id || !state.sourceOriginal) return;
+  const card = document.querySelector(`tr.source-editor[data-source="${CSS.escape(id)}"]`);
+  const rad = document.querySelector(`tr[data-source="${CSS.escape(id)}"]:not(.source-editor)`);
+  if (!card) return;
+
+  const original = state.sourceOriginal;
+  const draft = readDraft(card);
+  let ändrade = 0;
+
+  for (const input of card.querySelectorAll("[data-field]")) {
+    const key = input.dataset.field;
+    const changed = String(draft[key]) !== String(original[key]);
+    const wrapper = input.closest("label");
+    if (wrapper) wrapper.classList.toggle("changed", changed);
+    if (changed) ändrade += 1;
+  }
+
+  const mönsterÄndrat =
+    JSON.stringify(draft.match_patterns) !== JSON.stringify(original.match_patterns);
+  card.querySelector(".pattern-editor").classList.toggle("changed", mönsterÄndrat);
+  if (mönsterÄndrat) ändrade += 1;
+
+  card.querySelector('[data-source-action="save"]').disabled = ändrade === 0;
+  card.querySelector("[data-change-summary]").textContent =
+    ändrade === 0 ? "" : ändrade === 1 ? "1 ändring" : `${ändrade} ändringar`;
+
+  // Knappen på raden säger vad ett klick faktiskt gör.
+  const knapp = rad && rad.querySelector('[data-source-action="close"]');
+  if (knapp) knapp.textContent = ändrade === 0 ? "Stäng" : "Avbryt";
+}
+
+el("sources-list").addEventListener("input", refreshDirty);
+el("sources-list").addEventListener("change", refreshDirty);
 
 function applyDraft(id) {
   const index = state.sources.findIndex((s) => s.id === id);
