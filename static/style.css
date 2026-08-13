@@ -470,47 +470,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .sources-table td.links { font-size: 13px; }
 .sources-table td.links a { display: block; }
 .sources-table td.c-edit, .sources-table th.c-edit { text-align: right; }
-
-/* Fast bredd: knappen byter text mellan Redigera, Stäng och Avbryt, och får
-   inte glida i sidled när den gör det — hela poängen är att muspekaren ska
-   kunna ligga kvar. */
-.sources-table td.c-edit button { min-width: 88px; }
 .sources-table .cell-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 
-/* Raden som redigeras hör ihop med sin editor: samma bakgrund, ingen linje
-   emellan. */
-tr.source-open > td { background: var(--neutral-bg); border-bottom: none; }
-.source-editor > td { background: var(--neutral-bg); padding: 4px 16px 16px; }
-
-/* Ändrade fält markeras, så att man ser vad ett Spara faktiskt skulle spara. */
-.source-editor label.changed > input,
-.source-editor label.changed > textarea,
-.source-editor label.changed > select { border-color: var(--accent); }
-
-/* Märket ligger på etikettraden och tar ingen egen höjd — annars hoppar
-   formuläret nedåt i samma stund som man börjar skriva. */
-.source-editor label.field.block { position: relative; }
-
-.source-editor label.field.changed::after {
-  content: "ändrat";
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-}
-
-.source-editor label.toggle.changed { color: var(--accent); font-weight: 600; }
-
-.pattern-editor.changed {
-  border-left: 2px solid var(--accent);
-  padding-left: 10px;
-  margin-left: -12px;
-}
-
-.change-summary { color: var(--accent); font-size: 13px; margin-right: 4px; }
+.source-editor > td { background: var(--neutral-bg); padding: 16px; }
 .source-editor .grid-two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .source-editor h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase;
   letter-spacing: 0.04em; color: var(--muted); }
