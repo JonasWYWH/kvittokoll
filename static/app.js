@@ -270,6 +270,7 @@ function renderMonth(key, allRows) {
   if (!rows.length) return section;
 
   const table = document.createElement("table");
+  table.className = "month-table";
   // Varje månad är en egen tabell. Utan låsta bredder räknar de ut sina
   // kolumner var för sig och slutar linjera med varandra.
   table.innerHTML = `
@@ -357,8 +358,8 @@ function renderRow(row) {
       }</span>
     </td>
     <td class="amount ${row.amount < 0 ? "negative" : ""}">${formatAmount(row.amount)}</td>
-    <td>${receiptCell(row)}</td>
-    <td class="date">${sentCell(row)}</td>
+    <td class="receipt">${receiptCell(row)}</td>
+    <td class="date sent">${sentCell(row)}</td>
     <td class="row-actions">
       <button class="icon" data-action="toggle-required"
         title="${row.requires_receipt
@@ -540,9 +541,9 @@ function renderSourceRow(source) {
       <span class="cell-main">${escapeHtml(source.name)}</span>
       <span class="cell-meta">${escapeHtml(source.company) || "—"} ${märken}</span>
     </td>
-    <td><div class="patterns">${patternChips(source)}</div>
+    <td class="rules"><div class="patterns">${patternChips(source)}</div>
       ${source.note ? `<p class="source-note">${escapeHtml(source.note)}</p>` : ""}</td>
-    <td class="amount"><span class="num">${source.transaction_count}</span></td>
+    <td class="amount"><span class="num">${source.transaction_count}</span><span class="col-label"> ${source.transaction_count === 1 ? "rad" : "rader"}</span></td>
     <td class="links">
       ${source.receipt_url
         ? `<a href="${escapeHtml(source.receipt_url)}" target="_blank" rel="noopener">Verifikat ↗</a>`

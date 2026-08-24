@@ -472,6 +472,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .sources-table td.c-edit, .sources-table th.c-edit { text-align: right; }
 .sources-table .cell-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 
+/* Kolumnrubriken bär ordet på bred skärm. Blir raden ett kort försvinner
+   rubriken, och siffran behöver ordet med sig. */
+.col-label { display: none; }
+
 .source-editor > td { background: var(--neutral-bg); padding: 16px; }
 .source-editor .grid-two { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .source-editor h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase;
@@ -716,3 +720,113 @@ button.badge:hover { border-color: currentColor; }
 
 .paths dt { color: var(--muted); }
 .paths dd { margin: 0; overflow-wrap: anywhere; font-size: 12px; }
+
+
+/* ---------- mobil ---------- */
+
+/* Tabellerna är byggda för bredd: låsta kolumnbredder som linjerar mellan
+   månaderna. Under 720px finns inte bredden, och kolumnerna krymper tills
+   texten står en bokstav per rad. Där blir varje rad ett kort i stället —
+   samma innehåll, staplat i den ordning man läser det. */
+
+@media (max-width: 720px) {
+  main { padding: 0 14px 60px; }
+
+  /* Rubrikraden bryts i två: namn och knapp överst, vyerna under. */
+  .topbar { flex-wrap: wrap; gap: 10px; padding: 12px 14px; }
+  .topbar-actions { margin-left: auto; }
+  .topbar-actions button { padding: 7px 11px; }
+  .topbar-nav { order: 3; flex: 1 0 100%; margin-right: 0; overflow-x: auto; }
+  button.nav { padding: 6px 8px; white-space: nowrap; }
+
+  .filters { gap: 8px; }
+  .filters > * { flex: 1 1 100%; min-width: 0; }
+  /* Sökrutans min-width är satt med id och vinner annars över raden ovan. */
+  .filters #filter-text { min-width: 0; }
+  .filters .field { flex: 1 1 40%; }
+  .filters .field input { flex: 1 1 auto; width: 100%; min-width: 0; }
+  .filters #filter-reset { flex: 0 0 auto; margin-left: auto; }
+
+  .view-head { flex-direction: column; gap: 12px; margin: 18px 0 14px; }
+  .view-head .actions { width: 100%; }
+
+  .month-head { flex-wrap: wrap; gap: 2px 12px; }
+  .month-toggle { flex-basis: 100%; margin-left: 0; }
+
+  .bulk, .editor-actions, .dialog-actions { flex-wrap: wrap; }
+
+  /* Tabell blir kort. Colgroup och rubrikrad har inget att göra i ett kort. */
+  .month-table, .month-table tbody, .month-table tr, .month-table td,
+  .sources-table, .sources-table tbody, .sources-table tr, .sources-table td {
+    display: block;
+  }
+  .month-table thead, .month-table colgroup,
+  .sources-table thead, .sources-table colgroup { display: none; }
+
+  .month-table tr, .sources-table tr {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .month-table tbody tr:last-child,
+  .sources-table tbody tr:last-child { border-bottom: none; }
+  .month-table td, .sources-table td {
+    padding: 1px 0;
+    border-bottom: none;
+    background: none;
+  }
+  .month-table td.amount, .sources-table td.amount { white-space: normal; }
+
+  /* Avstängda rader tonas som helhet, inte cell för cell. */
+  .month-table tr.not-required { background: var(--neutral-bg); }
+
+  /* Transaktionskortet:
+       [✓] datum            belopp  [öga]
+           källa
+           text
+           typ · anteckning
+           verifikat        skickat        */
+  .month-table tr {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto auto;
+    align-items: start;
+    gap: 2px 8px;
+  }
+  .month-table td.select { grid-area: 1 / 1; }
+  .month-table td.date:not(.sent) { grid-area: 1 / 2; }
+  .month-table td.amount { grid-area: 1 / 3; }
+  .month-table td.row-actions { grid-area: 1 / 4; }
+  .month-table td.text { grid-area: 2 / 2 / 3 / -1; }
+  .month-table td.receipt { grid-area: 3 / 2; }
+  .month-table td.sent { grid-area: 3 / 3 / 4 / -1; text-align: right; }
+
+  /* Källkortet:
+       namn                 [Redigera]
+       bolag · märken
+       mönster
+       n rader              länkar       */
+  .sources-table tr:not(.source-editor) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 4px 8px;
+  }
+  .sources-table td.text { grid-area: 1 / 1; }
+  .sources-table td.c-edit { grid-area: 1 / 2; }
+  .sources-table td.rules { grid-area: 2 / 1 / 3 / -1; }
+  .sources-table td.amount { grid-area: 3 / 1; text-align: left; }
+  .sources-table td.links { grid-area: 3 / 2; text-align: right; }
+  .sources-table td.amount .col-label { display: inline; color: var(--muted); font-size: 13px; }
+  .sources-table td.links a { display: inline-block; margin-left: 10px; }
+
+  .source-editor > td { padding: 12px; }
+
+  /* Feltabellen i importen behåller sina kolumner och scrollar i sin ruta —
+     tre korta celler blir obegripliga som staplade kort. */
+  .error-list table { table-layout: auto; min-width: 420px; }
+
+  dialog { width: calc(100vw - 20px); max-height: 88vh; }
+  .dialog-body { padding: 18px 16px; }
+  .dialog-body h2 { padding-right: 76px; }
+
+  .flash { left: 12px; right: 12px; max-width: none; }
+}
