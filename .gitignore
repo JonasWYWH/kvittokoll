@@ -1,7 +1,7 @@
 # Din data. Transaktioner, verifikat, backuper, skapade mejl.
 # Ska aldrig hamna i ett repo — allt här är din bokföring.
-data/
-settings.json
+/data/
+/settings.json
 
 # Bankexporter. Lägg dem var du vill, men committa dem inte:
 # de innehåller kontonummer, saldon och motparter.

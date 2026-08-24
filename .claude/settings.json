@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git for-each-ref:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash list)",
+      "Bash(git stash create:*)",
+      "Bash(git stash apply refs/utkast/:*)",
+      "Bash(git update-ref refs/utkast/:*)",
+      "Bash(git checkout --detach:*)",
+      "Bash(git switch main)",
+      "Bash(git switch -)",
+      "Bash(git restore:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git revert:*)",
+      "Bash(python3 -m unittest discover -s tests -t tests)",
+      "Bash(python3 app.py --no-browser)",
+      "Bash(pkill -f app.py)",
+      "Bash(pgrep -f:*)",
+      "Bash(date:*)"
+    ],
+    "deny": [
+      "Bash(git clean:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git reflog expire:*)",
+      "Bash(git gc:*)"
+    ]
+  }
+}
