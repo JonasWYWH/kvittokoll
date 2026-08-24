@@ -35,7 +35,7 @@ Argument: $ARGUMENTS
    Så låter det i repot: "Backa redigerarens tre fixar, för att göra om dem
    stegvis".
 4. Kör testerna: `python3 -m unittest discover -s tests -t tests`.
-5. Ändrades någon `*.py` av reverten: `pkill -f app.py` och
+5. Ändrades någon `*.py` av reverten: `pkill -f "[a]pp\.py"` och
    `python3 app.py --no-browser` i bakgrunden. Annars räcker en omladdning.
 6. Rapportera: "Ändringen är backad. Originalet finns kvar som `<sha>` i
    historiken — `/backa <ord>` tar dig dit när du vill titta på den igen."

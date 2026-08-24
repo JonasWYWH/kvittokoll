@@ -16,6 +16,11 @@ python3 -m unittest discover -s tests -t tests   # hela testsviten
 no-store` — en omladdning i webbläsaren räcker efter en ändring där.
 `kvittokoll/*.py` och `app.py` läses vid processtart och kräver omstart.
 
+Servern stoppas med `pkill -f "[a]pp\.py"`, aldrig `pkill -f app.py`. Det
+senare mönstret står i skalets egen kommandorad och matchar därmed sig självt —
+skalet dör innan servern hinner startas om. Hakparentesen bryter matchningen
+utan att ändra vad som träffas.
+
 ## Gyllene regeln: rör aldrig `data/`
 
 `data/`, `settings.json` och `Transactions/` är skarp bokföring och är

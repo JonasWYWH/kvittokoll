@@ -49,7 +49,7 @@ git diff --name-only <sha> <där-du-stod> -- '*.py'
 
 - Tomt → ingen omstart. `static/*` serveras från disk med `Cache-Control:
   no-store`, så en omladdning i webbläsaren räcker.
-- Något → `pkill -f app.py`, sedan `python3 app.py --no-browser` i bakgrunden.
+- Något → `pkill -f "[a]pp\.py"`, sedan `python3 app.py --no-browser` i bakgrunden.
 
 ### 5. Rapportera på svenska
 

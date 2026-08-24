@@ -22,7 +22,7 @@
       "Bash(git revert:*)",
       "Bash(python3 -m unittest discover -s tests -t tests)",
       "Bash(python3 app.py --no-browser)",
-      "Bash(pkill -f app.py)",
+      "Bash(pkill -f \"[a]pp\\.py\")",
       "Bash(pgrep -f:*)",
       "Bash(date:*)"
     ],

@@ -55,7 +55,7 @@ par kilobyte och är hela skyddsnätet.
 ### 5. Starta om servern bara om det behövs
 
 `git diff --name-only <där-du-stod> <där-du-är-nu> -- '*.py'` — tomt betyder
-ingen omstart, annars `pkill -f app.py` och `python3 app.py --no-browser` i
+ingen omstart, annars `pkill -f "[a]pp\.py"` och `python3 app.py --no-browser` i
 bakgrunden.
 
 ### 6. Rapportera
