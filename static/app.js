@@ -523,7 +523,11 @@ function patternChips(source) {
 }
 
 function renderSourceRow(source) {
-  if (state.editingSource === source.id) return renderSourceEditor(source);
+  // Utkastet ritas ovanpå källan men skrivs aldrig in i state.sources. Listan
+  // står därmed kvar som den var, och avbryta blir att slänga utkastet.
+  if (state.editingSource === source.id) {
+    return renderSourceEditor({ ...source, ...state.sourceDraft });
+  }
 
   const märken = [
     source.requires_receipt ? "" : '<span class="badge not_required">Inget krav</span>',
@@ -621,23 +625,22 @@ el("sources-list").addEventListener("click", async (event) => {
 
   if (action === "edit") {
     state.editingSource = id;
+    state.sourceDraft = {};
     renderSources();
   } else if (action === "cancel") {
-    // Utkastet har skrivits in i state.sources för att överleva omritningar
-    // när man lägger till mönster. Avbryter man måste det kastas, annars står
-    // ändringarna kvar i listan trots att de aldrig sparades.
+    // Ingenting är sparat, så det finns inget att hämta från servern. Utkastet
+    // slängs och listan ritas om — sidan står kvar där man var.
     state.editingSource = null;
     state.sourceDraft = {};
-    await load();
-    showView("sources");
+    renderSources();
   } else if (action === "add-pattern") {
     collectDraft(card, id);
     state.sourceDraft.match_patterns.push({ pattern: "", mode: "contains" });
-    applyDraft(id);
+    renderSources();
   } else if (action === "drop-pattern") {
     collectDraft(card, id);
     state.sourceDraft.match_patterns.splice(Number(button.closest(".pattern-row").dataset.index), 1);
-    applyDraft(id);
+    renderSources();
   } else if (action === "save") {
     collectDraft(card, id);
     try {
@@ -647,6 +650,7 @@ el("sources-list").addEventListener("click", async (event) => {
         body: JSON.stringify(state.sourceDraft),
       });
       state.editingSource = null;
+      state.sourceDraft = {};
       await load();
       showView("sources");
       const delar = [];
@@ -692,12 +696,6 @@ function collectDraft(card, id) {
   }));
   state.sourceDraft = draft;
   return draft;
-}
-
-function applyDraft(id) {
-  const index = state.sources.findIndex((s) => s.id === id);
-  if (index >= 0) state.sources[index] = { ...state.sources[index], ...state.sourceDraft };
-  renderSources();
 }
 
 function message(text) {
