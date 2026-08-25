@@ -37,12 +37,24 @@ Kör testsviten först, och committa bara med den grön. Faller ett test: visa
 vilket och fråga — föreslå aldrig att testet ändras för att bli grönt.
 
 Meddelandet skrivs på svenska, i presens, en rad, och beskriver vad användaren
-märker — inte hur koden är byggd. Inga prefix som `feat:` eller `fix:`. Så här
-ser repot ut:
+märker — inte hur koden är byggd. Inga prefix som `feat:` eller `fix:`.
 
-    Kolumnerna linjerar mellan månadstabellerna
-    Statushinkar ersätter översiktsraden och statusmenyn
-    Avbryt i redigeraren lämnar källistan orörd
+Raden byggs alltid på samma sätt, ungefär som en BEM-klass fast i klartext:
+**vad som ändrats först, vilken ändring sedan.** Först subjektet — den sak
+användaren ser och kan peka på: kolumnen, knappen, listan, kommandot. Sedan
+verbet i presens som säger vad saken numera gör. Så här ser repot ut:
+
+    <vad som ändrats>      <vilken ändring>
+
+    Kolumnerna             linjerar mellan månadstabellerna
+    Statushinkar           ersätter översiktsraden och statusmenyn
+    Avbryt i redigeraren   lämnar källistan orörd
+    git checkout -         växlar mellan de två senaste lägena
+
+Uppdelningen är bara ett tankestöd — meddelandet är en vanlig mening på en rad,
+med ett mellanslag mellan delarna. Faller subjektet bort börjar raden i koden
+eller i arbetet i stället för i saken användaren ser, och då är den fel:
+`Fixar layoutbugg`, `Uppdaterar app.js`, `Diverse förbättringar`.
 
 Lägg till namngivna filer, aldrig `git add -A` — `data/` är gitignorerad, men
 vanan är ändå fel här.

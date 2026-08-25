@@ -379,6 +379,24 @@ verifikat med namnstandard, `.eml`-utskick per rad och inställningsvy.
 
 Inte byggt ännu: massutskick (§8.4) och SMTP som alternativ till `.eml`.
 
+## Committa
+
+Commits namnges likadant varje gång, ungefär som en BEM-klass fast i klartext:
+**vad som ändrats först, vilken ändring sedan.** Först subjektet — den sak du
+ser i appen och kan peka på — sedan verbet i presens som säger vad saken numera
+gör. Svenska, presens, en rad, inga prefix som `feat:` eller `fix:`.
+
+    <vad som ändrats>      <vilken ändring>
+
+    Kolumnerna             linjerar mellan månadstabellerna
+    Statushinkar           ersätter översiktsraden och statusmenyn
+    Avbryt i redigeraren   lämnar källistan orörd
+    git checkout -         växlar mellan de två senaste lägena
+
+Meddelandet beskriver vad du märker, inte hur koden är byggd — historiken blir
+då en lista över vad verktyget kan, och `git log --oneline` går att läsa uppifrån
+och ned. Testsviten ska vara grön innan du committar.
+
 ## Krav
 
 Python 3.9 eller senare. Inga andra beroenden.
