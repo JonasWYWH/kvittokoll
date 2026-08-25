@@ -459,12 +459,39 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .view-head h2 { margin: 0 0 4px; font-size: 17px; }
 .view-head p { margin: 0; max-width: 60ch; }
 
-/* Källvyn är en tabell, inte kort: tjugo källor blir annars mest scroll. */
-.sources-table col.c-name { width: 260px; }
-.sources-table col.c-rules { width: auto; }
-.sources-table col.c-count { width: 80px; }
-.sources-table col.c-links { width: 210px; }
-.sources-table col.c-edit { width: 110px; }
+/* Källvyn är en tabell, inte kort: tjugo källor blir annars mest scroll. Men
+   raden är två rader inuti sig själv — namnet och Redigera överst, allt annat
+   under. Knappen hamnar därmed på samma plats i varje rad, oavsett hur många
+   mönster källan har, så ögat och musen vet var de ska.
+
+   Kolumnerna hålls av ett rutnät i stället för colgroup: varje rad delar samma
+   mall, så rad två linjerar mellan källorna och med rubrikraden. */
+.sources-table, .sources-table thead, .sources-table tbody { display: block; }
+.sources-table colgroup { display: none; }
+
+.sources-table tr {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 80px 210px 110px;
+  gap: 2px 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sources-table thead tr { background: var(--neutral-bg); }
+.sources-table tbody tr:last-child { border-bottom: none; }
+.sources-table th, .sources-table td { padding: 0; border-bottom: none; background: none; }
+
+.sources-table td.text { grid-area: 1 / 1 / 3 / 2; }
+.sources-table td.c-edit { grid-area: 1 / 5; }
+.sources-table td.rules { grid-area: 2 / 2; }
+.sources-table td.amount { grid-area: 2 / 3; }
+.sources-table td.links { grid-area: 2 / 4; }
+
+/* Redigeraren fyller hela raden och har inga kolumner att linjera med. Cellen
+   måste bli ett block — som tabellcell krymper den till innehållet och lämnar
+   en tom remsa till höger. */
+.sources-table tr.source-editor { display: block; padding: 0; }
+.sources-table tr.source-editor > td { display: block; }
 
 .sources-table td { vertical-align: top; }
 .sources-table td.links { font-size: 13px; }
@@ -756,20 +783,15 @@ button.badge:hover { border-color: currentColor; }
   .bulk, .editor-actions, .dialog-actions { flex-wrap: wrap; }
 
   /* Tabell blir kort. Colgroup och rubrikrad har inget att göra i ett kort. */
-  .month-table, .month-table tbody, .month-table tr, .month-table td,
-  .sources-table, .sources-table tbody, .sources-table tr, .sources-table td {
+  .month-table, .month-table tbody, .month-table tr, .month-table td {
     display: block;
   }
-  .month-table thead, .month-table colgroup,
-  .sources-table thead, .sources-table colgroup { display: none; }
+  .month-table thead, .month-table colgroup, .sources-table thead { display: none; }
 
-  .month-table tr, .sources-table tr {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--line);
-  }
-  .month-table tbody tr:last-child,
-  .sources-table tbody tr:last-child { border-bottom: none; }
-  .month-table td, .sources-table td {
+  .month-table tr, .sources-table tr { padding: 10px 12px; }
+  .month-table tr { border-bottom: 1px solid var(--line); }
+  .month-table tbody tr:last-child { border-bottom: none; }
+  .month-table td {
     padding: 1px 0;
     border-bottom: none;
     background: none;
