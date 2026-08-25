@@ -28,6 +28,24 @@ inkorg och mallar ställs in under **Inställningar** i verktyget, som skriver
 `settings.json` åt dig. `settings.example.json` visar alla fält och deras
 standardvärden.
 
+### Se hur det var innan
+
+Inget byggsteg betyder att en utcheckad commit är den körande appen. Vill du
+jämföra en ändring med läget innan räcker vanlig git — ladda om webbläsaren
+efter hoppet, och starta om servern bara om någon `.py`-fil skiljer.
+
+```bash
+git log --oneline        # vilka lägen finns
+git checkout HEAD~2      # backa två steg
+git switch main          # hem till senaste
+```
+
+Har du osparat arbete när du vill hoppa: `git stash push -u` lägger undan det,
+inklusive otrackade filer, och `git stash pop` hämtar tillbaka det.
+
+`git clean` är det enda git-kommando som är farligt här — det skulle radera
+`data/`, som är otrackad och oersättlig.
+
 ### Prova utan din egen bank
 
 ```bash

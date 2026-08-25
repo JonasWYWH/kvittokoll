@@ -27,34 +27,29 @@ utan att ändra vad som träffas.
 otrackade. Git rör dem aldrig — `checkout`, `switch` och `restore` lämnar
 otrackade filer i fred. Ett enda kommando bryter det: **`git clean` skulle
 radera hela `data/`**, inklusive `outbox/`, `receipts/` och `backups/`. Kör det
-aldrig, i någon form, hur harmlöst flaggan än ser ut.
+aldrig, i någon form, hur harmlös flaggan än ser ut.
 
 Kopiera, flytta eller radera heller aldrig något inuti `data/` på egen hand.
 
-## Lägesmodellen
+## Committa
 
-| Var du är | Under huven | Betyder |
-|---|---|---|
-| Hemma | `main` | Senaste läget. Här utvecklas och committas det. |
-| Tittar bakåt | frånkopplat HEAD | Ett gammalt läge ligger i arbetskatalogen. Committa inte här. |
-| Skyddsnät | `refs/utkast/*` | Undanlagt osparat arbete. Radera aldrig en sådan ref. |
+Kör testsviten först, och committa bara med den grön. Faller ett test: visa
+vilket och fråga — föreslå aldrig att testet ändras för att bli grönt.
 
-Kommandon: `/spara`, `/backa`, `/fram`, `/lage`, `/angra`. Säg "gammalt läge"
-till användaren, aldrig "detached HEAD".
-
-Står ett gammalt läge i arbetskatalogen kör gammal kod mot skarp data. Titta —
-men importera inte, skicka inte och radera inget så länge det gäller.
-
-## Commit-stil
-
-Svenska, presens, en rad, beskriver vad användaren märker — inte hur koden är
-byggd. Inga prefix som `feat:` eller `fix:`. Så här ser repot ut:
+Meddelandet skrivs på svenska, i presens, en rad, och beskriver vad användaren
+märker — inte hur koden är byggd. Inga prefix som `feat:` eller `fix:`. Så här
+ser repot ut:
 
     Kolumnerna linjerar mellan månadstabellerna
     Statushinkar ersätter översiktsraden och statusmenyn
-    Backa redigerarens tre fixar, för att göra om dem stegvis
+    Avbryt i redigeraren lämnar källistan orörd
+
+Lägg till namngivna filer, aldrig `git add -A` — `data/` är gitignorerad, men
+vanan är ändå fel här.
 
 ## Git svarar på svenska här
 
 `git status` säger "På grenen main". Läs därför alltid maskinformat —
 `--porcelain`, `--format`, `git rev-parse` — och matcha aldrig på fritext.
+
+Att hoppa mellan lägen sköter användaren själv med vanlig git; se README.
