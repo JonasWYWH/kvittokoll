@@ -37,6 +37,7 @@ efter hoppet, och starta om servern bara om någon `.py`-fil skiljer.
 ```bash
 git log --oneline        # vilka lägen finns
 git checkout HEAD~2      # backa två steg
+git checkout -           # växla mellan de två senaste lägena, fram och tillbaka
 git switch main          # hem till senaste
 ```
 
