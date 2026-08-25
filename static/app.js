@@ -524,11 +524,10 @@ function patternChips(source) {
 }
 
 function renderSourceRow(source) {
-  // Utkastet ritas ovanpå källan men skrivs aldrig in i state.sources. Listan
-  // står därmed kvar som den var, och avbryta blir att slänga utkastet.
-  if (state.editingSource === source.id) {
-    return renderSourceEditor({ ...source, ...state.sourceDraft });
-  }
+  // Utkastet ritas i redigeraren under raden men skrivs aldrig in i
+  // state.sources. Raden ovanför står därmed kvar som den var, och avbryta
+  // blir att slänga utkastet.
+  const redigeras = state.editingSource === source.id;
 
   const märken = [
     source.requires_receipt ? "" : '<span class="badge not_required">Inget krav</span>',
@@ -536,7 +535,7 @@ function renderSourceRow(source) {
     source.auto_send_configured ? '<span class="badge sent">Mejlas automatiskt</span>' : "",
   ].filter(Boolean).join(" ");
 
-  return `<tr data-source="${escapeHtml(source.id)}">
+  const rad = `<tr${redigeras ? ' class="editing"' : ""} data-source="${escapeHtml(source.id)}">
     <td class="text">
       <span class="cell-main">${escapeHtml(source.name)}</span>
       <span class="cell-meta">${escapeHtml(source.company) || "—"} ${märken}</span>
@@ -552,8 +551,15 @@ function renderSourceRow(source) {
         ? `<a href="${escapeHtml(source.settings_url)}" target="_blank" rel="noopener">Mejlinställning ↗</a>`
         : ""}
     </td>
-    <td class="c-edit"><button class="tiny" data-source-action="edit">Redigera</button></td>
+    <td class="c-edit"><button class="tiny" data-source-action="${redigeras ? "cancel" : "edit"}">${redigeras ? "Stäng" : "Redigera"}</button></td>
   </tr>`;
+
+  // Raden fälls inte ihop när redigeraren öppnas, den står kvar ovanför den.
+  // Knappen ligger därmed still och byter bara ord, och namnet över formuläret
+  // säger hela tiden vilken källa som redigeras. Stäng gör samma sak som
+  // Avbryt: utkastet slängs och raden är oförändrad.
+  if (!redigeras) return rad;
+  return rad + renderSourceEditor({ ...source, ...state.sourceDraft });
 }
 
 function renderSourceEditor(source) {

@@ -493,6 +493,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
 .sources-table tr.source-editor { display: block; padding: 0; }
 .sources-table tr.source-editor > td { display: block; }
 
+/* Källans rad står kvar ovanför sin utfällda redigerare. De två hör ihop och
+   ska läsas som ett stycke: strecket mellan dem tas bort och raden får
+   redigerarens bakgrund. */
+.sources-table tr.editing { background: var(--neutral-bg); border-bottom: none; }
+
 .sources-table td { vertical-align: top; }
 .sources-table td.links { font-size: 13px; }
 .sources-table td.links a { display: block; }
